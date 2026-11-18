@@ -11,7 +11,7 @@
       }
     } catch (error) { /* Storage may be unavailable in restricted browser contexts. */ }
   </script>
-  <title>みん単｜英単語検索 v47</title>
+  <title>みん単｜英単語検索 v52</title>
   <style>
     :root { color-scheme: light; --ink:#17233d; --muted:#65718a; --line:rgba(102,129,190,.18); --blue:#247cff; --surface:rgba(255,255,255,.94); --soft:rgba(47,126,255,.10); --shadow:0 18px 55px rgba(64,91,150,.12); }
     * { box-sizing:border-box; }
@@ -2254,34 +2254,415 @@
       background:linear-gradient(115deg,#3999ff 0%,#8063f2 52%,#e653a4 100%) !important;
       background-image:linear-gradient(115deg,#3999ff 0%,#8063f2 52%,#e653a4 100%) !important;
     }
+  
+
+    /* v48: calmer controls, lower rendering cost, and in-flow learning navigation. */
+    body { background-attachment:scroll !important; }
+    .search-panel, .result { backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+
+    /* Keep the recognizable multicolor search glow, but stop continuously animating
+       blurred filters/hue rotation. A static gradient halo is much cheaper to render. */
+    .search-panel {
+      box-shadow:0 10px 28px rgba(56,96,165,.08),
+                 0 0 18px rgba(34,151,255,.13),
+                 0 0 25px rgba(143,76,255,.09),
+                 0 0 30px rgba(255,71,159,.075) !important;
+    }
+    .search-panel::before {
+      inset:-4px !important;
+      padding:2.5px !important;
+      border-radius:25px !important;
+      opacity:.82 !important;
+      filter:none !important;
+      animation:none !important;
+      background:conic-gradient(from 15deg,#22d2ff 0deg,#665bff 72deg,#fa57bf 144deg,#ffad55 216deg,#3ad4a5 288deg,#22d2ff 360deg) !important;
+    }
+    .search-panel::after { display:none !important; animation:none !important; filter:none !important; }
+    .search-panel .glow-track rect { animation:none !important; filter:none !important; }
+    .search-panel:focus-within {
+      box-shadow:0 0 0 3px rgba(66,139,255,.06),
+                 0 10px 28px rgba(56,96,165,.08),
+                 0 0 22px rgba(36,155,255,.19),
+                 0 0 30px rgba(133,83,255,.13),
+                 0 0 36px rgba(255,72,158,.10) !important;
+    }
+    .search-panel:focus-within::before { opacity:.95 !important; }
+    .search-panel.glow-burst {
+      box-shadow:0 0 0 3px rgba(54,176,255,.07),
+                 0 0 23px 5px rgba(94,119,255,.20),
+                 0 0 34px 9px rgba(245,74,177,.13),
+                 0 0 42px 12px rgba(42,201,197,.09) !important;
+    }
+    .search-panel.glow-burst::before { opacity:1 !important; }
+
+    /* Keep the one-shot result highlight, but remove the expensive multi-layer blur. */
+    .result-glow-track .halo-wide { filter:none !important; opacity:.42 !important; stroke-width:7 !important; }
+    .result-glow-track .halo-mid { filter:none !important; opacity:.78 !important; stroke-width:4 !important; }
+    .result-glow-track .halo-core { filter:none !important; opacity:.9 !important; stroke-width:1.8 !important; }
+    .result.result-flash::before { filter:none !important; }
+    .tap-glow { filter:none !important; opacity:.72; }
+
+    /* The three study actions now live below the result and scroll with the page. */
+    .mintan-control-dock {
+      position:relative !important;
+      inset:auto !important;
+      top:auto !important; right:auto !important; bottom:auto !important; left:auto !important;
+      z-index:2 !important;
+      display:flex !important;
+      flex-direction:row !important;
+      align-items:center !important;
+      justify-content:center !important;
+      flex-wrap:nowrap !important;
+      gap:clamp(10px,2.2vw,18px) !important;
+      width:min(100%,650px) !important;
+      max-width:100% !important;
+      margin:18px auto 12px !important;
+      padding:0 !important;
+      transform:none !important;
+      pointer-events:auto !important;
+    }
+    .mintan-control-dock > .browse-open,
+    .mintan-control-dock > .test-open,
+    .mintan-control-dock > .check-list-side-open {
+      position:relative !important;
+      inset:auto !important;
+      top:auto !important; right:auto !important; bottom:auto !important; left:auto !important;
+      flex:1 1 0 !important;
+      width:auto !important;
+      min-width:0 !important;
+      max-width:190px !important;
+      height:52px !important;
+      min-height:52px !important;
+      max-height:52px !important;
+      margin:0 !important;
+      padding:0 10px !important;
+      display:flex !important;
+      flex-direction:row !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:7px !important;
+      overflow:hidden !important;
+      border:1px solid rgba(104,145,211,.30) !important;
+      border-radius:14px !important;
+      color:#355d91 !important;
+      background:linear-gradient(135deg,rgba(245,250,255,.98),rgba(239,241,255,.96)) !important;
+      box-shadow:0 4px 13px rgba(62,112,190,.11),0 0 14px rgba(69,139,255,.10) !important;
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+      transform:none !important;
+      white-space:nowrap !important;
+      opacity:0;
+      translate:0 10px;
+      scale:1;
+      animation:dockSimpleEntrance .42s ease-out both !important;
+      will-change:auto !important;
+      transition:transform .16s ease,box-shadow .16s ease,background .16s ease !important;
+    }
+    .mintan-control-dock > .browse-open { animation-delay:.10s !important; }
+    .mintan-control-dock > .test-open { animation-delay:.17s !important; }
+    .mintan-control-dock > .check-list-side-open { animation-delay:.24s !important; }
+    .mintan-control-dock > .test-open {
+      color:#62518e !important;
+      border-color:rgba(143,121,207,.30) !important;
+      background:linear-gradient(135deg,rgba(249,246,255,.98),rgba(245,238,255,.96)) !important;
+      box-shadow:0 4px 13px rgba(116,91,180,.11),0 0 14px rgba(155,104,255,.09) !important;
+    }
+    .mintan-control-dock > .check-list-side-open {
+      color:#52618f !important;
+      border-color:rgba(126,133,211,.30) !important;
+      background:linear-gradient(135deg,rgba(247,248,255,.98),rgba(239,241,255,.96)) !important;
+      box-shadow:0 4px 13px rgba(99,104,184,.11),0 0 14px rgba(135,115,255,.09) !important;
+    }
+    .mintan-control-dock > button:hover {
+      transform:translateY(-2px) !important;
+      box-shadow:0 6px 17px rgba(62,112,190,.15),0 0 18px rgba(91,139,255,.14) !important;
+    }
+    .mintan-control-dock > button:active { transform:scale(.985) !important; }
+    .mintan-control-dock .browse-open-arrow,
+    .mintan-control-dock .test-open-arrow { display:none !important; }
+    .mintan-control-dock .check-list-side-arrow {
+      display:inline-flex !important;
+      width:auto !important; height:auto !important;
+      margin:0 !important;
+      font-size:17px !important;
+      line-height:1 !important;
+    }
+    .mintan-control-dock .browse-open-label,
+    .mintan-control-dock .test-open-label {
+      display:inline-block !important;
+      width:auto !important; min-width:0 !important; max-width:100% !important;
+      margin:0 !important; padding:0 !important;
+      overflow:visible !important;
+      color:inherit !important;
+      font-size:13px !important; font-weight:850 !important; line-height:1.2 !important;
+      text-align:center !important; white-space:nowrap !important;
+    }
+    .mintan-control-dock .check-list-side-label {
+      display:inline-flex !important;
+      flex-direction:row !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:6px !important;
+      width:auto !important; max-width:100% !important; min-width:0 !important;
+      margin:0 !important; padding:0 !important;
+      overflow:visible !important;
+      color:inherit !important;
+      font-size:12px !important; font-weight:850 !important; line-height:1.2 !important;
+      white-space:nowrap !important;
+    }
+    .mintan-control-dock #checkListCount {
+      display:inline-grid !important;
+      place-items:center !important;
+      min-width:19px !important; min-height:19px !important;
+      padding:0 4px !important;
+      border-radius:999px !important;
+      color:#fff !important;
+      background:linear-gradient(120deg,#3b9dff,#8a5cf6,#ed559f) !important;
+      font-size:10px !important; line-height:1 !important;
+    }
+    @keyframes dockSimpleEntrance {
+      from { opacity:0; translate:0 10px; }
+      to { opacity:1; translate:0 0; }
+    }
+    html[data-theme="dark"] .mintan-control-dock > .browse-open,
+    html[data-theme="dark"] .mintan-control-dock > .test-open,
+    html[data-theme="dark"] .mintan-control-dock > .check-list-side-open {
+      color:#e2ecff !important;
+      border-color:rgba(155,183,232,.27) !important;
+      background:linear-gradient(135deg,rgba(38,53,81,.98),rgba(31,43,68,.98)) !important;
+      box-shadow:0 4px 14px rgba(0,0,0,.20),0 0 14px rgba(91,143,255,.12) !important;
+    }
+    @media(max-width:520px) {
+      .mintan-control-dock { gap:8px !important; margin-top:15px !important; }
+      .mintan-control-dock > .browse-open,
+      .mintan-control-dock > .test-open,
+      .mintan-control-dock > .check-list-side-open {
+        height:48px !important; min-height:48px !important; max-height:48px !important;
+        padding:0 5px !important; border-radius:12px !important;
+      }
+      .mintan-control-dock .browse-open-label,
+      .mintan-control-dock .test-open-label { font-size:12px !important; }
+      .mintan-control-dock .check-list-side-label { font-size:10px !important; gap:4px !important; }
+      .mintan-control-dock .check-list-side-arrow { font-size:15px !important; }
+    }
+    @media(max-width:360px) {
+      .mintan-control-dock { gap:5px !important; }
+      .mintan-control-dock .browse-open-label,
+      .mintan-control-dock .test-open-label { font-size:11px !important; }
+      .mintan-control-dock .check-list-side-label { font-size:9px !important; }
+    }
+    @media(prefers-reduced-motion:reduce) {
+      .mintan-control-dock > button { animation:none !important; opacity:1 !important; translate:none !important; transition:none !important; }
+    }
+
+    /* Replace speech-bubble styling with simple helper buttons; retain their one-time entrance. */
+    .morph-help-bubble,
+    .confusing-help-bubble {
+      border-radius:14px !important;
+      border:1px solid rgba(112,148,207,.30) !important;
+      background:linear-gradient(135deg,rgba(255,255,255,.97),rgba(239,246,255,.96) 58%,rgba(248,240,255,.96)) !important;
+      color:#3b5782 !important;
+      box-shadow:0 5px 16px rgba(68,113,181,.13),0 0 18px rgba(95,154,255,.13) !important;
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+      filter:none;
+    }
+    .morph-help-bubble::before,.morph-help-bubble::after,
+    .confusing-help-bubble::before,.confusing-help-bubble::after { display:none !important; content:none !important; }
+    .morph-help-bubble:hover,.confusing-help-bubble:hover {
+      box-shadow:0 7px 19px rgba(68,113,181,.16),0 0 22px rgba(115,132,255,.17) !important;
+    }
+    .morph-bubble-icon,.confusing-bubble-icon { box-shadow:none !important; }
+    html[data-theme="dark"] .morph-help-bubble,
+    html[data-theme="dark"] .confusing-help-bubble {
+      color:#e0ebff !important;
+      border-color:rgba(160,186,231,.28) !important;
+      background:linear-gradient(135deg,rgba(36,52,80,.98),rgba(31,42,67,.98) 58%,rgba(48,39,71,.98)) !important;
+      box-shadow:0 5px 17px rgba(0,0,0,.28),0 0 17px rgba(91,143,255,.13) !important;
+    }
+
+    /* Make routine utility controls crisp and flat instead of glossy/bubble-like. */
+    .theme-toggle,
+    .search-history-toggle,
+    .search-history-clear,
+    .search-history-chip,
+    .browse-glass-button,
+    .browse-nav-button,
+    .browse-chip,
+    .test-close,
+    .test-secondary,
+    .drawer-close,
+    .morph-close,
+    .morph-tab {
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+      box-shadow:0 2px 8px rgba(62,93,151,.07) !important;
+      border-radius:11px !important;
+      inset:initial;
+    }
+    .theme-toggle {
+      border:1px solid rgba(121,149,198,.30) !important;
+      background:rgba(255,255,255,.92) !important;
+      color:#526b91 !important;
+    }
+    .search-history-toggle,.search-history-clear,.search-history-chip {
+      background:rgba(255,255,255,.94) !important;
+      border-color:rgba(121,149,198,.28) !important;
+    }
+    html[data-theme="dark"] .theme-toggle,
+    html[data-theme="dark"] .search-history-toggle,
+    html[data-theme="dark"] .search-history-clear,
+    html[data-theme="dark"] .search-history-chip,
+    html[data-theme="dark"] .browse-glass-button,
+    html[data-theme="dark"] .browse-nav-button,
+    html[data-theme="dark"] .browse-chip,
+    html[data-theme="dark"] .test-close,
+    html[data-theme="dark"] .test-secondary,
+    html[data-theme="dark"] .drawer-close,
+    html[data-theme="dark"] .morph-close,
+    html[data-theme="dark"] .morph-tab {
+      box-shadow:0 2px 8px rgba(0,0,0,.20) !important;
+    }
+
+  
+
+    /* v49: light-weight semantic visuals made from inline SVG, lines and emoji. */
+    .search-workspace { display:block; margin-top:22px; }
+    .search-column { min-width:0; }
+    .search-column .search-panel { margin-top:0 !important; }
+    .search-column .hint { margin-bottom:0; }
+    .result-workspace { display:block; margin-top:27px; }
+    .result-workspace.visuals-on {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(210px,250px);
+      align-items:stretch;
+      gap:15px;
+    }
+    .result-workspace .result { min-width:0; margin-top:0 !important; }
+    .search-visual { min-height:220px; align-self:stretch; }
+    .meaning-visual {
+      min-width:0;
+      min-height:118px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      padding:11px 13px 9px;
+      border:1px solid rgba(119,151,207,.24);
+      border-radius:20px;
+      color:#344968;
+      background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(245,249,255,.91));
+      box-shadow:0 9px 25px rgba(67,101,162,.075),inset 0 1px 0 rgba(255,255,255,.96);
+      overflow:hidden;
+    }
+    .visual-heading { display:flex; justify-content:space-between; align-items:center; gap:6px; color:#42638f; font-size:12px; font-weight:900; letter-spacing:.04em; }
+    .visual-mode-tag { color:#91a0b8; font-size:8px; font-weight:850; letter-spacing:.12em; white-space:nowrap; }
+    .visual-canvas { width:100%; height:86px; margin:2px auto 0; display:grid; place-items:center; }
+    .visual-canvas svg { display:block; width:100%; height:100%; overflow:visible; }
+    .visual-caption { margin:0; min-height:15px; color:#7888a2; font-size:10px; line-height:1.45; text-align:center; }
+    .visual-placeholder { flex:1; min-height:78px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px; color:#92a0b7; font-size:10px; font-weight:650; line-height:1.5; text-align:center; }
+    .visual-placeholder-mark { color:#6c8fe0; font-size:25px; line-height:1; text-shadow:0 0 14px rgba(104,139,235,.3); }
+    .visual-no-match { flex:1; min-height:78px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:5px; color:#8593a9; font-size:10px; line-height:1.6; text-align:center; }
+    .visual-no-match strong { color:#627794; font-size:12px; }
+    .visual-word-chip { align-self:center; max-width:100%; margin-top:2px; padding:2px 9px; overflow:hidden; border-radius:999px; color:#6680a8; background:rgba(100,145,220,.09); font-size:9px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+    .browse-stage { width:min(100%,1060px); }
+    .browse-stage-grid { display:block; }
+    .browse-stage-grid.visuals-on { display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,270px); align-items:center; gap:24px; }
+    .browse-stage-main { width:100%; min-width:0; margin:0 auto; }
+    .browse-visual { min-height:246px; padding:17px 16px 13px; border-radius:22px; background:linear-gradient(150deg,rgba(255,255,255,.94),rgba(242,247,255,.91)); }
+    .browse-visual .visual-canvas { height:164px; margin-top:10px; }
+    .browse-visual .visual-caption { font-size:11px; }
+    .browse-visual .visual-placeholder,.browse-visual .visual-no-match { min-height:170px; }
+    html[data-theme="dark"] .meaning-visual { color:#d4e2f8; border-color:rgba(139,165,211,.24); background:linear-gradient(145deg,rgba(28,41,65,.96),rgba(24,35,57,.93)); box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(214,229,255,.05); }
+    html[data-theme="dark"] .visual-heading { color:#bad1f4; }
+    html[data-theme="dark"] .visual-mode-tag { color:#7185a7; }
+    html[data-theme="dark"] .visual-caption,html[data-theme="dark"] .visual-placeholder,html[data-theme="dark"] .visual-no-match { color:#93a7c7; }
+    html[data-theme="dark"] .visual-no-match strong { color:#b7c9e5; }
+    html[data-theme="dark"] .visual-word-chip { color:#b1c9ed; background:rgba(108,151,219,.13); }
+    @media(max-width:680px) {
+      .result-workspace { margin-top:18px; }
+      .result-workspace.visuals-on { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+      .search-visual { min-height:140px; }
+      .search-visual .visual-canvas { height:95px; }
+      .browse-stage-grid.visuals-on { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+      .browse-visual { min-height:190px; }
+      .browse-visual .visual-canvas { height:125px; }
+      .browse-visual .visual-placeholder,.browse-visual .visual-no-match { min-height:125px; }
+    }
+
+
+    /* v52 settings dialog and optional meaning visuals */
+    .settings-dialog { width:min(520px,calc(100vw - 28px)); max-width:none; max-height:min(82vh,760px); padding:0; border:1px solid rgba(126,151,194,.24); border-radius:24px; color:var(--ink); background:var(--surface); box-shadow:0 24px 80px rgba(30,50,90,.24); }
+    .settings-dialog::backdrop { background:rgba(20,30,52,.42); backdrop-filter:blur(4px); }
+    .settings-shell { padding:22px; }
+    .settings-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    .settings-section { padding:16px 0; border-top:1px solid var(--line); }
+    .settings-section h3 { margin:0 0 5px; color:var(--ink); font-size:14px; }
+    .settings-section > p { margin:0 0 12px; color:var(--muted); font-size:12px; }
+    .settings-choice-row { display:flex; gap:9px; }
+    .settings-choice { flex:1; min-height:42px; border:1px solid var(--line); border-radius:12px; color:var(--ink); background:var(--surface); font-size:12px; font-weight:800; }
+    .settings-choice[aria-pressed="true"] { border-color:#789de0; background:linear-gradient(120deg,rgba(73,151,239,.14),rgba(173,103,222,.12)); box-shadow:0 0 0 2px rgba(101,145,225,.10); }
+    .settings-switch-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 13px; border:1px solid var(--line); border-radius:14px; background:rgba(120,150,200,.055); cursor:pointer; }
+    .settings-switch-row strong,.settings-switch-row small { display:block; }
+    .settings-switch-row strong { color:var(--ink); font-size:13px; }
+    .settings-switch-row small { margin-top:3px; color:var(--muted); font-size:11px; }
+    .settings-switch-row input { width:20px; height:20px; accent-color:#648fe0; flex:0 0 auto; }
+    .settings-notice { margin-top:12px; padding:13px 14px; border-radius:13px; background:rgba(112,145,196,.08); color:var(--muted); font-size:11px; line-height:1.75; }
+    .settings-notice strong { color:var(--ink); font-size:12px; }
+    .settings-notice p { margin:6px 0 0; }
+    .meaning-visual[hidden] { display:none !important; }
+    @media(max-width:520px) { .settings-shell { padding:17px; } .settings-choice-row { flex-direction:column; } }
   </style>
-  <!-- v37: morpheme learning panel -->
+  <!-- v52: image visual OFF collapses the visual column and restores the centered single-column layout -->
 </head>
 <body>
   <main>
     <div class="heading-row">
       <div class="eyebrow">WORD LOOKUP · 1–1200</div>
       <div class="heading-actions">
-        <button class="theme-toggle" id="themeToggle" type="button" aria-label="ダークモードに切り替え" aria-pressed="false">☾ ダークモード</button>
+        <button class="theme-toggle" id="settingsOpen" type="button" aria-haspopup="dialog" aria-controls="settingsDialog">⚙ 設定</button>
       </div>
     </div>
     <h1>みん単 単語検索</h1>
     <p class="subtitle">英単語を入力すると、単語番号・意味・発音記号・語源・PDFの覚え方をまとめて検索。</p>
 
     <div class="search-prompt" id="searchPrompt" aria-live="polite"></div>
-    <form class="search-panel" id="searchForm" autocomplete="off">
-      <input id="wordInput" type="search" placeholder="例：environment" aria-label="英単語を入力" list="wordSuggestions" autofocus>
-      <datalist id="wordSuggestions"></datalist>
-      <button type="submit">検索</button>
-    </form>
-    <p class="hint">大文字・小文字は区別しません。Enterキーでも検索できます。</p>
+    <div class="search-workspace">
+      <div class="search-column">
+        <form class="search-panel" id="searchForm" autocomplete="off">
+          <input id="wordInput" type="search" placeholder="例：environment" aria-label="英単語を入力" list="wordSuggestions" autofocus>
+          <datalist id="wordSuggestions"></datalist>
+          <button type="submit">検索</button>
+        </form>
+        <p class="hint">大文字・小文字は区別しません。Enterキーでも検索できます。</p>
+      </div>
+    </div>
 
+    <div class="result-workspace">
+      <section class="result empty" id="result" aria-live="polite">
+        <div class="placeholder-icon">Aa</div>
+        <div class="empty-title">調べたい単語を入力</div>
+        <div class="empty-copy">PDFに収録された1〜1200番の見出し語から検索します。</div>
+      </section>
+      <aside class="meaning-visual search-visual" id="searchVisualPanel" aria-label="単語のイメージ図解">
+        <div class="visual-heading"><span>イメージ</span><span class="visual-mode-tag">SVG DIAGRAM</span></div>
+        <div class="visual-placeholder"><span class="visual-placeholder-mark">✧</span><span>単語を検索すると<br>ここに図解が表示されます</span></div>
+      </aside>
+    </div>
 
-    <section class="result empty" id="result" aria-live="polite">
-      <div class="placeholder-icon">Aa</div>
-      <div class="empty-title">調べたい単語を入力</div>
-      <div class="empty-copy">PDFに収録された1〜1200番の見出し語から検索します。</div>
-    </section>
+  <nav class="mintan-control-dock" aria-label="単語学習メニュー">
+    <button class="browse-open" id="browseOpen" type="button" aria-label="単語流し見モードを開く" title="単語流し見モード">
+      <span class="browse-open-arrow" aria-hidden="true">›</span>
+      <span class="browse-open-label">流し見</span>
+    </button>
+    <button class="test-open" id="testOpen" type="button" aria-label="四択テストを作成" title="四択テスト">
+      <span class="test-open-arrow" aria-hidden="true">↓</span>
+      <span class="test-open-label">テスト</span>
+    </button>
+    <button class="check-list-side-open" id="checkListOpen" type="button" aria-label="チェック単語リストを開く" title="チェックリスト">
+      <span class="check-list-side-arrow" aria-hidden="true">★</span>
+      <span class="check-list-side-label">チェックリスト <span id="checkListCount">0</span></span>
+    </button>
+  </nav>
     <section class="search-history-area" aria-label="検索履歴">
       <div class="search-history-toolbar">
         <button class="search-history-toggle" id="searchHistoryToggle" type="button" aria-expanded="false" aria-controls="searchHistoryPanel">
@@ -2302,21 +2683,35 @@
     </div>
   </main>
 
-
-  <nav class="mintan-control-dock" aria-label="単語学習メニュー">
-    <button class="browse-open" id="browseOpen" type="button" aria-label="単語流し見モードを開く" title="単語流し見モード">
-      <span class="browse-open-arrow" aria-hidden="true">›</span>
-      <span class="browse-open-label">流し見</span>
-    </button>
-    <button class="test-open" id="testOpen" type="button" aria-label="四択テストを作成" title="四択テスト">
-      <span class="test-open-arrow" aria-hidden="true">↓</span>
-      <span class="test-open-label">テスト</span>
-    </button>
-    <button class="check-list-side-open" id="checkListOpen" type="button" aria-label="チェック単語リストを開く" title="チェックリスト">
-      <span class="check-list-side-arrow" aria-hidden="true">★</span>
-      <span class="check-list-side-label">チェックリスト <span id="checkListCount">0</span></span>
-    </button>
-  </nav>
+  <dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="settings-shell">
+      <header class="settings-header">
+        <div><div class="drawer-eyebrow">MINTAN SETTINGS</div><h2 class="drawer-title" id="settingsTitle">⚙ 設定</h2></div>
+        <button class="drawer-close" id="settingsClose" type="button">閉じる ×</button>
+      </header>
+      <section class="settings-section">
+        <h3>表示モード</h3>
+        <p>サイト全体の配色を切り替えます。</p>
+        <div class="settings-choice-row">
+          <button type="button" class="settings-choice" id="settingsLight" aria-pressed="true">☀ ライトモード</button>
+          <button type="button" class="settings-choice" id="settingsDark" aria-pressed="false">☾ ダークモード</button>
+        </div>
+      </section>
+      <section class="settings-section">
+        <h3>単語のイメージ図解</h3>
+        <label class="settings-switch-row" for="imageVisualToggle">
+          <span><strong>イメージを表示する</strong><small>検索結果・流し見画面に図解を表示します。</small></span>
+          <input type="checkbox" id="imageVisualToggle">
+        </label>
+        <div class="settings-notice">
+          <strong>イメージ図解について</strong>
+          <p>図解は、英単語の意味や使われ方を視覚的に連想しやすくするための補助機能です。写真や辞書の定義そのものではなく、単語の意味を簡略化した模式図です。</p>
+          <p>複数の意味を持つ単語では、図が一部の意味だけを表している場合があります。また、図の対応が十分に適切でない単語や、ニュアンスを正確に表現できていない場合もあります。</p>
+          <p><strong>図だけで意味を判断せず、必ず単語・日本語訳・例文などと一緒に確認してください。</strong>違和感がある場合は表示をOFFにして、通常の単語情報を使ってください。</p>
+        </div>
+      </section>
+    </div>
+  </dialog>
 
   <section class="check-overlay" id="checkOverlay" aria-label="チェック単語リスト" aria-modal="true" role="dialog" hidden>
     <div class="check-shell">
@@ -2404,28 +2799,36 @@
 
       <section class="browse-stage" id="browseStage" aria-live="polite">
         <div class="browse-progress-track"><div class="browse-progress-fill" id="browseProgress"></div></div>
-        <div class="browse-slide-meta">
-          <span class="browse-slide-number" id="browseNumber">NO. 0001</span>
-          <span class="browse-slide-count" id="browseCount">1 / 1,200</span>
-          <button class="speak-button browse-speak" id="browseSpeak" type="button" title="英単語を読み上げ">🔊 読み上げ</button>
-          <button class="star-button browse-star" id="browseCheckToggle" type="button" aria-label="この単語をチェックリストに追加" aria-pressed="false">☆</button>
-        </div>
-        <h3 class="browse-word" id="browseWord">create</h3>
-        <div class="browse-meaning" id="browseMeaning">創り出す</div>
-        <div class="browse-detail-grid">
-          <div class="browse-detail-card">
-            <div class="browse-detail-label">PRONUNCIATION · IPA</div>
-            <div class="browse-detail-value browse-ipa" id="browseIpa">スタートすると取得します</div>
-            <div class="browse-ipa-note" id="browseIpaNote">発音記号の取得にはインターネット接続が必要です。</div>
+        <div class="browse-stage-grid">
+          <div class="browse-stage-main">
+            <div class="browse-slide-meta">
+              <span class="browse-slide-number" id="browseNumber">NO. 0001</span>
+              <span class="browse-slide-count" id="browseCount">1 / 1,200</span>
+              <button class="speak-button browse-speak" id="browseSpeak" type="button" title="英単語を読み上げ">🔊 読み上げ</button>
+              <button class="star-button browse-star" id="browseCheckToggle" type="button" aria-label="この単語をチェックリストに追加" aria-pressed="false">☆</button>
+            </div>
+            <h3 class="browse-word" id="browseWord">create</h3>
+            <div class="browse-meaning" id="browseMeaning">創り出す</div>
+            <div class="browse-detail-grid">
+              <div class="browse-detail-card">
+                <div class="browse-detail-label">PRONUNCIATION · IPA</div>
+                <div class="browse-detail-value browse-ipa" id="browseIpa">スタートすると取得します</div>
+                <div class="browse-ipa-note" id="browseIpaNote">発音記号の取得にはインターネット接続が必要です。</div>
+              </div>
+              <div class="browse-detail-card">
+                <div class="browse-detail-label" id="browseHintLabel">MEMORY TIP · 語源・覚え方</div>
+                <div class="browse-detail-value" id="browseHint">語源やPDFの覚え方がここに表示されます。</div>
+              </div>
+            </div>
+            <div class="browse-nav">
+              <button class="browse-nav-button" id="browsePrev" type="button">← 前へ</button>
+              <button class="browse-nav-button primary" id="browseNext" type="button">次へ →</button>
+            </div>
           </div>
-          <div class="browse-detail-card">
-            <div class="browse-detail-label" id="browseHintLabel">MEMORY TIP · 語源・覚え方</div>
-            <div class="browse-detail-value" id="browseHint">語源やPDFの覚え方がここに表示されます。</div>
-          </div>
-        </div>
-        <div class="browse-nav">
-          <button class="browse-nav-button" id="browsePrev" type="button">← 前へ</button>
-          <button class="browse-nav-button primary" id="browseNext" type="button">次へ →</button>
+          <aside class="meaning-visual browse-visual" id="browseVisualPanel" aria-label="流し見中の単語のイメージ図解">
+            <div class="visual-heading"><span>イメージ</span><span class="visual-mode-tag">SVG DIAGRAM</span></div>
+            <div class="visual-placeholder"><span class="visual-placeholder-mark">✧</span><span>単語の意味を<br>図でイメージ</span></div>
+          </aside>
         </div>
       </section>
       <p class="browse-footnote">キーボード：← → で移動 ／ Spaceで一時停止・再開 ／ Escで検索画面に戻る</p>
@@ -3614,7 +4017,13 @@
     const result = document.getElementById('result');
     const form = document.getElementById('searchForm');
     const suggestions = document.getElementById('wordSuggestions');
-    const themeToggle = document.getElementById('themeToggle');
+    const settingsOpen = document.getElementById('settingsOpen');
+    const settingsDialog = document.getElementById('settingsDialog');
+    const settingsClose = document.getElementById('settingsClose');
+    const settingsLight = document.getElementById('settingsLight');
+    const settingsDark = document.getElementById('settingsDark');
+    const imageVisualToggle = document.getElementById('imageVisualToggle');
+    const imageVisualStorageKey = 'mintan-image-visual-v1';
     const themeColorMeta = document.getElementById('themeColorMeta');
     const searchHistoryToggle = document.getElementById('searchHistoryToggle');
     const searchHistoryPanel = document.getElementById('searchHistoryPanel');
@@ -3689,18 +4098,48 @@
     function applyTheme(theme) {
       const isDark = theme === 'dark';
       document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
-      themeToggle.textContent = isDark ? '☀ ライトモード' : '☾ ダークモード';
-      themeToggle.setAttribute('aria-label', isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え');
-      themeToggle.setAttribute('aria-pressed', String(isDark));
+      if (settingsLight) settingsLight.setAttribute('aria-pressed', String(!isDark));
+      if (settingsDark) settingsDark.setAttribute('aria-pressed', String(isDark));
       if (themeColorMeta) themeColorMeta.setAttribute('content', isDark ? '#101522' : '#fbfcff');
     }
 
     applyTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
-    themeToggle.addEventListener('click', () => {
-      const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    settingsOpen.addEventListener('click', () => settingsDialog.showModal());
+    settingsClose.addEventListener('click', () => settingsDialog.close());
+    settingsDialog.addEventListener('click', event => { if (event.target === settingsDialog) settingsDialog.close(); });
+    function chooseTheme(nextTheme) {
       applyTheme(nextTheme);
       try { localStorage.setItem('mintan-theme', nextTheme); } catch (error) { /* Theme still changes for this visit. */ }
+      if (typeof syncBrowseThemeButton === 'function') syncBrowseThemeButton();
+    }
+    settingsLight.addEventListener('click', () => chooseTheme('light'));
+    settingsDark.addEventListener('click', () => chooseTheme('dark'));
+
+    let imageVisualEnabled = false;
+    try { imageVisualEnabled = localStorage.getItem(imageVisualStorageKey) === 'on'; } catch (error) { imageVisualEnabled = false; }
+    imageVisualToggle.checked = imageVisualEnabled;
+    let currentSearchVisualEntry = null;
+    let currentBrowseVisualEntry = null;
+    function applyImageVisualPreference() {
+      const searchPanel = document.getElementById('searchVisualPanel');
+      const browsePanel = document.getElementById('browseVisualPanel');
+      const searchWorkspace = document.querySelector('.result-workspace');
+      const browseGrid = document.querySelector('.browse-stage-grid');
+      if (searchPanel) searchPanel.hidden = !imageVisualEnabled;
+      if (browsePanel) browsePanel.hidden = !imageVisualEnabled;
+      if (searchWorkspace) searchWorkspace.classList.toggle('visuals-on', imageVisualEnabled);
+      if (browseGrid) browseGrid.classList.toggle('visuals-on', imageVisualEnabled);
+      if (imageVisualEnabled) {
+        renderMeaningVisual(currentSearchVisualEntry, searchPanel);
+        renderMeaningVisual(currentBrowseVisualEntry, browsePanel);
+      }
+    }
+    imageVisualToggle.addEventListener('change', () => {
+      imageVisualEnabled = imageVisualToggle.checked;
+      try { localStorage.setItem(imageVisualStorageKey, imageVisualEnabled ? 'on' : 'off'); } catch (error) { /* Preference applies for this visit. */ }
+      applyImageVisualPreference();
     });
+    applyImageVisualPreference();
 
     // Local autocomplete list; it does not send anything over the network.
     const optionFragment = document.createDocumentFragment();
@@ -3894,7 +4333,226 @@
       if (glowTrack) result.appendChild(glowTrack);
     }
 
+
+    // v49: deliberately simple semantic diagrams. No external image files or AI calls.
+    function getMeaningVisualType(entry) {
+      if (!entry) return null;
+      const word = String(entry.word || '').toLowerCase();
+      const meaning = String(entry.meaning || '');
+      const groups = [
+        ['increase', ['increase','rise','raise','grow','expand','boost','elevate','intensify','enlarge','climb','improve','advance','progress','escalate','strengthen','extend','develop'], /増加|増える|上昇|高ま|拡大|成長|伸び|向上|進歩|強化/],
+        ['decrease', ['decrease','reduce','decline','fall','drop','shrink','lower','diminish','lessen','weaken','deteriorate','dwindle','shrink'], /減少|減ら|低下|下落|縮小|弱ま|衰退|減る/],
+        ['connect', ['connect','link','join','unite','combine','associate','relate','cooperate','cooperation','collaborate','collaboration','interact','correspond','network','attach'], /つな|結び|協力|関連|関係|接続|連携|結合|交流/],
+        ['divide', ['divide','separate','split','isolate','distinguish','segregate','disconnect','classify','partition'], /分け|分離|区別|隔離|分類|切り離/],
+        ['transfer', ['transfer','transport','deliver','convey','transmit','ship','shift','migrate','relocate','import','export','dispatch','移す'], /運ぶ|輸送|転送|移転|移動|引き渡|届け|送る/],
+        ['prevent', ['prevent','prohibit','ban','forbid','block','stop','hinder','restrain','avoid','resist','inhibit','obstruct'], /防ぐ|妨げ|禁止|阻止|抑制|禁じ/],
+        ['protect', ['protect','defend','guard','shelter','preserve','secure','conserve','safeguard'], /守る|保護|防衛|保存|安全に|かばう/],
+        ['compare', ['compare','contrast','differ','difference','distinguish','vary','resemble','similar','相違'], /比較|対比|違い|異なる|類似|似て/],
+        ['include', ['include','contain','comprise','consist','involve','enclose','embrace','incorporate'], /含む|構成|包含|内包|から成る/],
+        ['choose', ['choose','select','decide','determine','option','alternative','elect','selection'], /選ぶ|選択|決定|決断/],
+        ['create', ['create','invent','produce','construct','build','manufacture','generate','establish','found','devise','form'], /作る|創造|生み出|発明|建設|設立/],
+        ['communicate', ['communicate','inform','announce','declare','report','explain','express','notify','illustrate'], /伝え|知らせ|報告|説明|表現|通知/],
+        ['support', ['support','assist','aid','help','encourage','sustain','maintain','uphold','back'], /支援|援助|支える|助け|維持|後押し/],
+        ['compete', ['compete','competition','competitive','rival','contest','challenge','opponent'], /競争|競い|対抗|競技/],
+        ['approach', ['approach','near'], /近づ|接近|迫る/],
+        // Additional curated groups: match concrete headwords, not broad vague meanings.
+        ['appearance', ['appear','emerge','reveal','vanish','fade','conceal','hide','expose','display','visible','invisible']],
+        ['movement', ['proceed','wander','chase','slip','float','retreat','commute','migrate','lean','bump','leap','bob','pursue','escape','approach']],
+        ['thought', ['suppose','assume','wonder','imagine','predict','forecast','estimate','judge','doubt','anticipate','justify','infer','grasp','concept','thought','idea','theory','reason','aim','ideal']],
+        ['perception', ['notice','recognize','observe','examine','survey','scan','overlook','identify','gaze','sensation','sensory','awareness','detect']],
+        ['speech', ['advocate','quote','cite','dispute','negotiate','controversy','consensus','accuse','dismiss','pronounce','statement','narrative','plot','column','refer','mention','argue','claim','debate']],
+        ['exchange', ['donate','inherit','deprive','acquire','gain','earn','exchange','trade','offer','provide','receive','obtain','reward','substitute','retail']],
+        ['money', ['economy','income','charge','bill','fare','financial','estate','profit','wealth','cost','fee','wage','salary','recession','value']],
+        ['build', ['design','construct','install','equip','infrastructure','component','structure','material','enterprise','mill','manufacture','formation','mount','device']],
+        ['destroy', ['destroy','damage','spoil','crack','burst','explode','ruin','harm']],
+        ['growth', ['cultivate','foster','rear','mature','evolve','develop','reproduce','thrive','breed','nurture']],
+        ['mix', ['blend','mixture','hybrid','combine','incorporate']],
+        ['filter', ['filter','extract','exclude','remove','separate','isolate','screen']],
+        ['clean', ['wipe','sweep','polish','clean','purify']],
+        ['health', ['medicine','clinic','allergy','antibiotic','vaccine','dementia','fatigue','diabetes','heal','obese','pregnant','nutrition','supplement','immune','stroke','patient','pain','wound']],
+        ['body', ['cell','neuron','skeleton','joint','fingerprint','fiber','gene','muscle','organ']],
+        ['nature', ['environment','species','crop','ecology','wilderness','reef','mineral','galaxy','pollution','pesticide','fuel','resource','scenery','arctic','polar','seasonal']],
+        ['place', ['region','province','urban','site','geography','trail','landscape']],
+        ['time', ['decade','millennium','semester','deadline','ancient','recent','current','previous','subsequent','instant','eventually','simultaneously','postpone','pause','persist','cease','repeat','transition']],
+        ['quantity', ['maximum','excess','abundant','vast','entire','rare','moderate','spare','tremendous','dense','shallow','extra']],
+        ['geometry', ['vertical','parallel','curve','dimension','surface','column','section','ratio','horizontal','angle']],
+        ['emotion', ['emotion','stress','concern','distress','panic','disgust','thrill','grateful','empathy','sympathy','charm','ambition','desire','optimistic','unpleasant','awful','indifferent','awkward','intimate','fear','pleasure']],
+        ['society', ['community','company','colleague','audience','folk','sibling','mankind','adolescent','workforce','collective','mutual','counterpart','league','nationality','pedestrian','individual','public']],
+        ['law', ['crime','legal','sue','arrest','penalty','jury','obey','regulate','justice','court','lawful','illegal']],
+        ['politics', ['policy','political','congress','revolution','elect','poll','government','democracy','politician','govern']],
+        ['education', ['academic','undergraduate','research','knowledge','skill','practice','experiment','evidence','faculty','semester','theory','article']],
+        ['technology', ['digital','mobile','technology','tablet','file','input','output','medium','magnetic','device','install']],
+        ['senses', ['scent','bitter','shade','ray','oral','deaf','sensory','gaze','sensation','taste','smell','sound']],
+        ['ethics', ['virtue','ethic','moral','noble','sacred','spiritual','innocent','vice','cruel']],
+        ['conflict', ['conflict','struggle','opponent','rival','compromise','controversy','contest','penalty','challenge']],
+        ['food', ['feed','chew','swallow','beverage','nutrition','supplement','crop','fiber']],
+        ['process', ['attempt','perform','conduct','undergo','fulfill','undertake','manage','succeed','submit','task','scheme','scenario']],
+        ['possibility', ['possible','potential','likely','inevitable','willing','necessary','essential','appropriate','available','valid']],
+        ['causeEffect', ['cause','effect','influence','affect','impact','consequence','trigger','contribute','origin','basis']],
+        ['permission', ['allow','require','demand','force','limit','enable','refuse','reject','admit','permit']],
+        ['memory', ['memory','recall','remind','retain']],
+        ['search', ['search','seek','explore','locate','target','focus','investigate']],
+        ['solution', ['solve','settle','conclude','handle','deal','address']],
+        ['spread', ['spread','release','flow','circulate','distribute']],
+        ['safety', ['caution','threat','vulnerable','risk','survive','warn','landmine']],
+        ['ownership', ['own','possess','property','store','keep']],
+        ['relationship', ['share','trust','respect','depend','rely','contact','accord']],
+        ['function', ['function','role','feature','capacity','operate','element','method']],
+        ['behavior', ['behave','attitude','manner','habit','custom','participate']]
+
+      ];
+      for (const [type, words, meaningPattern] of groups) {
+        if (words.includes(word) || (meaningPattern && meaningPattern.test(meaning))) return type;
+      }
+      return null;
+    }
+
+    function visualSvg(type) {
+      const commonStart = '<svg viewBox="0 0 320 190" role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">';
+      const commonEnd = '</svg>';
+      const diagrams = {
+        increase: '<path d="M35 150H292M42 150V26" stroke="#a8b8d0" stroke-width="3" stroke-linecap="round"/><path d="M54 132L112 113L166 91L220 58L276 28" fill="none" stroke="#27a879" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M255 27L277 27L272 49" fill="none" stroke="#27a879" stroke-width="6" stroke-linecap="round"/><g fill="#27a879"><circle cx="54" cy="132" r="6"/><circle cx="112" cy="113" r="6"/><circle cx="166" cy="91" r="6"/><circle cx="220" cy="58" r="6"/></g><text x="48" y="174" fill="#71839e" font-size="13">少</text><text x="276" y="174" fill="#71839e" font-size="13">多</text>',
+        decrease: '<path d="M35 150H292M42 150V26" stroke="#a8b8d0" stroke-width="3" stroke-linecap="round"/><path d="M54 29L112 53L166 82L220 111L276 137" fill="none" stroke="#e58a52" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M254 137L277 137L272 115" fill="none" stroke="#e58a52" stroke-width="6" stroke-linecap="round"/><g fill="#e58a52"><circle cx="54" cy="29" r="6"/><circle cx="112" cy="53" r="6"/><circle cx="166" cy="82" r="6"/><circle cx="220" cy="111" r="6"/></g><text x="48" y="174" fill="#71839e" font-size="13">多</text><text x="276" y="174" fill="#71839e" font-size="13">少</text>',
+        connect: '<path d="M83 91L160 48L238 91M83 91L160 142L238 91" fill="none" stroke="#6b8fe0" stroke-width="5" stroke-linecap="round"/><g fill="#fff" stroke="#6b8fe0" stroke-width="4"><circle cx="83" cy="91" r="29"/><circle cx="160" cy="48" r="29"/><circle cx="238" cy="91" r="29"/><circle cx="160" cy="142" r="24"/></g><g font-size="25" text-anchor="middle" dominant-baseline="central"><text x="83" y="91">👤</text><text x="160" y="48">🤝</text><text x="238" y="91">👤</text><text x="160" y="142">🔗</text></g>',
+        divide: '<path d="M160 34V78M160 78L63 133M160 78V133M160 78L257 133" fill="none" stroke="#8c79d7" stroke-width="5" stroke-linecap="round"/><rect x="115" y="14" width="90" height="40" rx="17" fill="#eee9ff" stroke="#9b88e8" stroke-width="2"/><text x="160" y="40" text-anchor="middle" font-size="18" fill="#6957af">1つ</text><g fill="#fff" stroke="#9b88e8" stroke-width="3"><circle cx="63" cy="137" r="25"/><circle cx="160" cy="137" r="25"/><circle cx="257" cy="137" r="25"/></g><g font-size="20" text-anchor="middle" dominant-baseline="central"><text x="63" y="137">A</text><text x="160" y="137">B</text><text x="257" y="137">C</text></g>',
+        transfer: '<rect x="20" y="48" width="82" height="86" rx="15" fill="#eaf2ff" stroke="#7fa2e8" stroke-width="3"/><rect x="218" y="48" width="82" height="86" rx="15" fill="#e9f8f1" stroke="#63bd99" stroke-width="3"/><text x="61" y="99" text-anchor="middle" font-size="23" fill="#5279bf">A</text><text x="259" y="99" text-anchor="middle" font-size="23" fill="#38936e">B</text><path d="M113 91H203M190 77L204 91L190 105" fill="none" stroke="#e39a43" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="160" y="66" text-anchor="middle" font-size="24">📦</text><text x="160" y="153" text-anchor="middle" font-size="13" fill="#71839e">A から B へ</text>',
+        prevent: '<path d="M38 95H121M108 80L124 95L108 110" fill="none" stroke="#6b8fe0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M160 37V151" stroke="#e36d7b" stroke-width="11" stroke-linecap="round"/><path d="M139 37H181" stroke="#e36d7b" stroke-width="8" stroke-linecap="round"/><path d="M193 95H282" stroke="#c4cede" stroke-width="4" stroke-dasharray="7 8"/><text x="65" y="68" font-size="23">➡️</text><text x="244" y="75" font-size="25">⛔</text><text x="160" y="177" text-anchor="middle" font-size="13" fill="#71839e">進行を止める</text>',
+        protect: '<path d="M160 17L247 49V103C247 143 211 166 160 181C109 166 73 143 73 103V49Z" fill="#eaf5ff" stroke="#6c9bdc" stroke-width="5" stroke-linejoin="round"/><text x="160" y="112" text-anchor="middle" font-size="64">🛡️</text><path d="M160 28L223 52" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".8"/>',
+        compare: '<rect x="24" y="36" width="120" height="116" rx="17" fill="#fff4df" stroke="#e9b663" stroke-width="3"/><rect x="176" y="36" width="120" height="116" rx="17" fill="#eaf1ff" stroke="#83a4e8" stroke-width="3"/><text x="84" y="95" text-anchor="middle" font-size="42">☀️</text><text x="236" y="95" text-anchor="middle" font-size="42">🌙</text><text x="84" y="132" text-anchor="middle" font-size="15" fill="#9c773e">A</text><text x="236" y="132" text-anchor="middle" font-size="15" fill="#5875b1">B</text><path d="M145 91H175M160 77V105" stroke="#8b9bb4" stroke-width="3" stroke-linecap="round"/>',
+        include: '<rect x="56" y="25" width="208" height="142" rx="20" fill="#edf7ff" stroke="#78a4df" stroke-width="4" stroke-dasharray="8 5"/><g fill="#fff" stroke="#6d9bd7" stroke-width="3"><circle cx="112" cy="79" r="24"/><circle cx="208" cy="79" r="24"/><circle cx="160" cy="129" r="21"/></g><g font-size="24" text-anchor="middle" dominant-baseline="central"><text x="112" y="79">A</text><text x="208" y="79">B</text><text x="160" y="129">C</text></g><text x="160" y="17" text-anchor="middle" font-size="12" fill="#6384b2">ひとつのまとまり</text>',
+        choose: '<path d="M160 31V72M160 72L60 133M160 72V133M160 72L260 133" fill="none" stroke="#8d83d2" stroke-width="5" stroke-linecap="round"/><circle cx="160" cy="29" r="17" fill="#eeeaff" stroke="#9584d8" stroke-width="3"/><g><rect x="22" y="128" width="76" height="39" rx="13" fill="#e5f6ee" stroke="#58b78c" stroke-width="3"/><rect x="122" y="128" width="76" height="39" rx="13" fill="#f4f6fa" stroke="#c2ccda" stroke-width="3"/><rect x="222" y="128" width="76" height="39" rx="13" fill="#f4f6fa" stroke="#c2ccda" stroke-width="3"/></g><text x="60" y="154" text-anchor="middle" font-size="22" fill="#32976e">✓</text><text x="160" y="154" text-anchor="middle" font-size="17" fill="#8795aa">B</text><text x="260" y="154" text-anchor="middle" font-size="17" fill="#8795aa">C</text>',
+        create: '<path d="M160 19C118 19 96 50 105 83C111 105 128 111 130 132H190C192 111 209 105 215 83C224 50 202 19 160 19Z" fill="#fff5d9" stroke="#e4ae50" stroke-width="4"/><path d="M133 143H187M139 155H181" stroke="#8f9eb5" stroke-width="5" stroke-linecap="round"/><path d="M160 43V81M141 62H179" stroke="#e5a63a" stroke-width="5" stroke-linecap="round"/><g fill="#eeb64f"><path d="M54 47L62 28L70 47L89 55L70 63L62 82L54 63L35 55Z"/><path d="M247 102L253 88L259 102L273 108L259 114L253 128L247 114L233 108Z"/></g><text x="160" y="183" text-anchor="middle" font-size="12" fill="#71839e">アイデアから形へ</text>',
+        communicate: '<path d="M72 49H174Q190 49 190 65V103Q190 119 174 119H123L98 140V119H72Q56 119 56 103V65Q56 49 72 49Z" fill="#eaf2ff" stroke="#7d9fe0" stroke-width="3"/><path d="M153 83H248Q264 83 264 99V129Q264 145 248 145H230V163L207 145H153Q137 145 137 129V99Q137 83 153 83Z" fill="#eaf8f2" stroke="#75bd9b" stroke-width="3"/><g fill="#7896d1"><circle cx="90" cy="84" r="5"/><circle cx="108" cy="84" r="5"/><circle cx="126" cy="84" r="5"/></g><path d="M177 111L190 120L177 129" fill="none" stroke="#6eae91" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+        support: '<circle cx="86" cy="50" r="20" fill="#f5d4b9"/><circle cx="234" cy="50" r="20" fill="#f5d4b9"/><path d="M58 127Q61 82 86 82Q111 82 114 127M206 127Q209 82 234 82Q259 82 262 127" fill="#8da9df"/><path d="M104 106L160 78L216 106" fill="none" stroke="#4c9e83" stroke-width="9" stroke-linecap="round"/><rect x="119" y="56" width="82" height="26" rx="10" fill="#e6f6ed" stroke="#65b994" stroke-width="3"/><text x="160" y="75" text-anchor="middle" font-size="14" fill="#398a6c">支える</text>',
+        compete: '<path d="M40 94H126M112 79L128 94L112 109M280 94H194M208 79L192 94L208 109" fill="none" stroke="#8398cc" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="160" cy="94" r="43" fill="#fff4dc" stroke="#e5b25f" stroke-width="4"/><text x="160" y="111" text-anchor="middle" font-size="49">🏆</text><text x="76" y="54" text-anchor="middle" font-size="20">🏃</text><text x="244" y="54" text-anchor="middle" font-size="20">🏃</text>',
+        approach: '<path d="M34 98H286" stroke="#c3cedd" stroke-width="5" stroke-linecap="round" stroke-dasharray="7 8"/><circle cx="65" cy="98" r="26" fill="#e8f1ff" stroke="#7a9cdd" stroke-width="4"/><circle cx="255" cy="98" r="26" fill="#eaf7f0" stroke="#6bb694" stroke-width="4"/><path d="M100 98H146M132 84L148 98L132 112" fill="none" stroke="#7d8fcb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="65" y="106" text-anchor="middle" font-size="22">🚶</text><text x="255" y="106" text-anchor="middle" font-size="22">🎯</text><text x="160" y="157" text-anchor="middle" font-size="13" fill="#71839e">距離が縮まる</text>',
+
+        appearance: '<path d="M45 42H275V148H45Z" fill="#eef4ff" stroke="#8ba8da" stroke-width="4" rx="12"/><path d="M160 42V148" stroke="#8ba8da" stroke-width="3" stroke-dasharray="5 5"/><path d="M45 42L130 95L45 148M275 42L190 95L275 148" fill="#dce8fb" stroke="#6f91ce" stroke-width="4"/><circle cx="160" cy="95" r="30" fill="#fff3d7" stroke="#e5b45f" stroke-width="4"/><text x="160" y="109" text-anchor="middle" font-size="38">✨</text>',
+        movement: '<path d="M35 139H284" stroke="#b5c4d8" stroke-width="5" stroke-linecap="round"/><path d="M48 112C95 36 204 36 266 91" fill="none" stroke="#6d9add" stroke-width="6" stroke-linecap="round" stroke-dasharray="10 8"/><path d="M247 75L270 93L244 105" fill="none" stroke="#6d9add" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="55" y="90" font-size="29">🚶</text><text x="244" y="66" font-size="29">📍</text>',
+        thought: '<path d="M82 125C48 109 53 62 91 52C100 21 151 25 164 48C197 25 236 51 229 83C258 110 228 146 195 139H103Z" fill="#eeeaff" stroke="#9684d9" stroke-width="4"/><path d="M160 69V112M141 90H179" stroke="#dba747" stroke-width="6" stroke-linecap="round"/><circle cx="160" cy="91" r="28" fill="#fff7df" stroke="#e1b45f" stroke-width="3"/><text x="160" y="102" text-anchor="middle" font-size="30">💡</text>',
+        perception: '<path d="M35 95Q160 -5 285 95Q160 195 35 95Z" fill="#eaf3ff" stroke="#7299d7" stroke-width="5"/><circle cx="160" cy="95" r="43" fill="#fff" stroke="#7299d7" stroke-width="4"/><circle cx="160" cy="95" r="22" fill="#78a0df"/><circle cx="171" cy="83" r="8" fill="#fff"/><path d="M215 130L266 174" stroke="#7796cb" stroke-width="12" stroke-linecap="round"/>',
+        speech: '<path d="M38 38H175Q193 38 193 56V105Q193 123 175 123H103L72 148V123H56Q38 123 38 105Z" fill="#eaf2ff" stroke="#7d9fe0" stroke-width="4"/><path d="M144 85H264Q282 85 282 103V139Q282 157 264 157H238L215 178V157H144Q126 157 126 139V103Z" fill="#e9f8f1" stroke="#72bb98" stroke-width="4"/><g fill="#6e8fc9"><circle cx="83" cy="82" r="6"/><circle cx="105" cy="82" r="6"/><circle cx="127" cy="82" r="6"/></g><path d="M160 120H245" stroke="#72aa91" stroke-width="4" stroke-linecap="round"/>',
+        exchange: '<rect x="26" y="52" width="91" height="86" rx="15" fill="#eaf2ff" stroke="#7e9fe0" stroke-width="4"/><rect x="203" y="52" width="91" height="86" rx="15" fill="#eaf8f0" stroke="#75bd99" stroke-width="4"/><path d="M121 75H198M184 61L199 75L184 89M199 115H122M136 101L121 115L136 129" fill="none" stroke="#d99d4c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="72" y="109" text-anchor="middle" font-size="31">💰</text><text x="248" y="109" text-anchor="middle" font-size="31">📦</text>',
+        money: '<ellipse cx="160" cy="145" rx="93" ry="22" fill="#e8edf5"/><g fill="#f7d98c" stroke="#d4a64b" stroke-width="4"><ellipse cx="103" cy="121" rx="32" ry="11"/><path d="M71 121V139C71 153 135 153 135 139V121"/><ellipse cx="103" cy="139" rx="32" ry="11"/><ellipse cx="192" cy="94" rx="34" ry="12"/><path d="M158 94V127C158 143 226 143 226 127V94"/><ellipse cx="192" cy="127" rx="34" ry="12"/></g><text x="103" y="130" text-anchor="middle" font-size="22" fill="#9a702c">¥</text><text x="192" y="105" text-anchor="middle" font-size="24" fill="#9a702c">$</text>',
+        build: '<g stroke="#6995d3" stroke-width="4"><rect x="55" y="100" width="65" height="58" rx="7" fill="#e8f1ff"/><rect x="126" y="68" width="65" height="90" rx="7" fill="#dceaff"/><rect x="197" y="38" width="65" height="120" rx="7" fill="#e5f6ee" stroke="#6fb995"/></g><path d="M40 160H278" stroke="#aebdd2" stroke-width="5" stroke-linecap="round"/><g fill="#7ea1d9"><rect x="67" y="113" width="15" height="15" rx="3"/><rect x="92" y="113" width="15" height="15" rx="3"/><rect x="138" y="82" width="15" height="15" rx="3"/><rect x="164" y="82" width="15" height="15" rx="3"/></g>',
+        destroy: '<path d="M73 54L160 35L247 54V140L160 159L73 140Z" fill="#f5e9e7" stroke="#d58b82" stroke-width="4"/><path d="M160 35L143 82L173 99L145 126L160 159M73 54L143 82M247 54L173 99" fill="none" stroke="#c86d68" stroke-width="6" stroke-linejoin="round"/><path d="M40 170L88 150M232 160L282 178" stroke="#d58b82" stroke-width="5" stroke-linecap="round"/>',
+        growth: '<path d="M160 158V81M160 113C111 111 90 82 92 49C127 48 158 70 160 113ZM160 96C164 55 195 35 230 40C228 74 200 96 160 96Z" fill="#dff4e7" stroke="#65b98e" stroke-width="5" stroke-linejoin="round"/><path d="M93 160H227" stroke="#a77b55" stroke-width="7" stroke-linecap="round"/><path d="M160 158V175" stroke="#65b98e" stroke-width="5"/>',
+        mix: '<circle cx="115" cy="82" r="42" fill="#8fc2f3" fill-opacity=".78" stroke="#6d9ed7" stroke-width="4"/><circle cx="205" cy="82" r="42" fill="#f4bf87" fill-opacity=".8" stroke="#d99a58" stroke-width="4"/><path d="M132 139Q160 166 188 139" fill="none" stroke="#8c9fbe" stroke-width="5" stroke-linecap="round"/><path d="M160 124V153" stroke="#8c9fbe" stroke-width="5"/><circle cx="160" cy="83" r="20" fill="#c3b4e8" stroke="#9a88cb" stroke-width="3"/>',
+        filter: '<path d="M55 38H265L187 113V158H133V113Z" fill="#eaf2ff" stroke="#7c9fda" stroke-width="5" stroke-linejoin="round"/><path d="M86 52H234" stroke="#6f9bdb" stroke-width="5" stroke-linecap="round"/><circle cx="114" cy="68" r="5" fill="#dba24e"/><circle cx="148" cy="68" r="5" fill="#dba24e"/><circle cx="185" cy="68" r="5" fill="#dba24e"/><path d="M160 159V180" stroke="#6fb995" stroke-width="5" stroke-linecap="round"/>',
+        clean: '<path d="M80 113L126 47Q136 33 153 45L218 91Q232 102 220 119L174 168Q163 180 147 170L88 131Q73 123 80 113Z" fill="#e8f4ff" stroke="#78a6d7" stroke-width="4"/><path d="M101 119L145 59M129 140L173 81M157 158L202 99" stroke="#95b8df" stroke-width="5" stroke-linecap="round"/><g fill="#e8bd5b"><path d="M55 42L62 24L69 42L87 49L69 56L62 74L55 56L37 49Z"/><path d="M252 132L258 117L264 132L279 138L264 144L258 159L252 144L237 138Z"/></g>',
+        health: '<path d="M160 25L248 58V105C248 144 213 166 160 183C107 166 72 144 72 105V58Z" fill="#eaf8f1" stroke="#70bc98" stroke-width="4"/><path d="M160 54V122M126 88H194" stroke="#54a77e" stroke-width="15" stroke-linecap="round"/><path d="M91 143L122 143L138 122L157 155L177 109L192 143H226" fill="none" stroke="#e28c8c" stroke-width="4" stroke-linejoin="round"/>',
+        body: '<circle cx="160" cy="39" r="22" fill="#f3d1b6" stroke="#cc9e80" stroke-width="3"/><path d="M160 63V127M160 83L105 108M160 83L215 108M160 127L119 174M160 127L201 174" fill="none" stroke="#7199d5" stroke-width="12" stroke-linecap="round"/><circle cx="160" cy="87" r="9" fill="#e7a86a"/>',
+        nature: '<circle cx="160" cy="95" r="74" fill="#e9f5ff" stroke="#81a9d8" stroke-width="4"/><path d="M160 142V84" stroke="#9b774e" stroke-width="10" stroke-linecap="round"/><circle cx="160" cy="68" r="38" fill="#8dcea8" stroke="#60aa80" stroke-width="4"/><circle cx="130" cy="91" r="23" fill="#a5dcb7"/><circle cx="190" cy="91" r="23" fill="#a5dcb7"/><path d="M109 149Q160 165 211 149" fill="none" stroke="#6eaf83" stroke-width="5" stroke-linecap="round"/>',
+        place: '<path d="M160 177S68 98 68 68A92 92 0 0 1 252 68C252 98 160 177 160 177Z" fill="#eaf2ff" stroke="#779bd7" stroke-width="5"/><circle cx="160" cy="68" r="30" fill="#fff" stroke="#779bd7" stroke-width="4"/><text x="160" y="81" text-anchor="middle" font-size="38">📍</text>',
+        time: '<path d="M40 104H280" stroke="#aab9cf" stroke-width="6" stroke-linecap="round"/><g fill="#eaf2ff" stroke="#7198d6" stroke-width="4"><circle cx="54" cy="104" r="17"/><circle cx="160" cy="104" r="17"/><circle cx="266" cy="104" r="17"/></g><path d="M54 77V57M160 77V57M266 77V57" stroke="#92a8c9" stroke-width="4"/><text x="54" y="145" text-anchor="middle" font-size="14" fill="#72849f">前</text><text x="160" y="145" text-anchor="middle" font-size="14" fill="#72849f">今</text><text x="266" y="145" text-anchor="middle" font-size="14" fill="#72849f">後</text>',
+        quantity: '<path d="M40 158H282" stroke="#afbdd0" stroke-width="4"/><rect x="64" y="112" width="38" height="46" rx="7" fill="#a8c5ef"/><rect x="126" y="78" width="38" height="80" rx="7" fill="#80addf"/><rect x="188" y="34" width="38" height="124" rx="7" fill="#67b994"/><path d="M245 35V155M236 45L245 34L254 45" fill="none" stroke="#67b994" stroke-width="4" stroke-linecap="round"/>',
+        geometry: '<path d="M45 48L275 48M45 96L275 96M45 144L275 144" stroke="#7198d6" stroke-width="5" stroke-linecap="round"/><path d="M160 25V166" stroke="#d69c55" stroke-width="4" stroke-dasharray="7 7"/><text x="160" y="181" text-anchor="middle" font-size="12" fill="#71839e">同じ向き・一定の間隔</text>',
+        emotion: '<path d="M160 156S55 99 83 53C104 19 146 40 160 68C174 40 216 19 237 53C265 99 160 156 160 156Z" fill="#f8dfe4" stroke="#d98c9c" stroke-width="5"/><path d="M110 96Q135 75 160 96Q185 75 210 96" fill="none" stroke="#ce8495" stroke-width="4" stroke-linecap="round"/><circle cx="132" cy="83" r="4" fill="#ce8495"/><circle cx="188" cy="83" r="4" fill="#ce8495"/>',
+        society: '<g fill="#eaf2ff" stroke="#799bd5" stroke-width="4"><circle cx="160" cy="43" r="22"/><circle cx="85" cy="75" r="19"/><circle cx="235" cy="75" r="19"/></g><g fill="#8eaddf"><path d="M119 154Q121 86 160 86Q199 86 201 154Z"/><path d="M43 154Q45 105 85 105Q112 105 124 134L124 154Z"/><path d="M196 134Q208 105 235 105Q275 105 277 154H196Z"/></g><path d="M90 166H230" stroke="#6eb895" stroke-width="6" stroke-linecap="round"/>',
+        law: '<path d="M160 43V146M111 146H209M130 43H190" stroke="#8196bd" stroke-width="6" stroke-linecap="round"/><path d="M100 61L60 126H140ZM220 61L180 126H260Z" fill="#f6edda" stroke="#c6a56c" stroke-width="4"/><path d="M60 126Q100 153 140 126M180 126Q220 153 260 126" fill="none" stroke="#c6a56c" stroke-width="4"/><circle cx="160" cy="37" r="12" fill="#e6bd6c"/>',
+        politics: '<path d="M45 73L160 26L275 73Z" fill="#e8effb" stroke="#7798d0" stroke-width="4"/><path d="M58 82H262M66 151H254M75 82V151M120 82V151M160 82V151M200 82V151M245 82V151" stroke="#7897ca" stroke-width="8" stroke-linecap="round"/><path d="M45 164H275" stroke="#a7b8d1" stroke-width="5" stroke-linecap="round"/>',
+        education: '<path d="M42 54Q100 33 157 63V158Q100 128 42 149ZM278 54Q220 33 163 63V158Q220 128 278 149Z" fill="#eef4ff" stroke="#799bd5" stroke-width="4"/><path d="M160 63V158" stroke="#799bd5" stroke-width="4"/><path d="M78 84H130M78 104H130M190 84H242M190 104H242" stroke="#a7bce0" stroke-width="4" stroke-linecap="round"/><path d="M160 40V23M149 31L160 20L171 31" stroke="#d9a64f" stroke-width="4" stroke-linecap="round"/>',
+        technology: '<rect x="91" y="34" width="138" height="122" rx="18" fill="#eaf2ff" stroke="#7398d7" stroke-width="5"/><rect x="126" y="67" width="68" height="56" rx="9" fill="#d8e6fc" stroke="#83a8df" stroke-width="3"/><g stroke="#83a8df" stroke-width="5" stroke-linecap="round"><path d="M110 20V34M140 20V34M170 20V34M200 20V34M110 156V171M140 156V171M170 156V171M200 156V171M76 58H91M76 88H91M76 118H91M229 58H244M229 88H244M229 118H244"/></g><text x="160" y="106" text-anchor="middle" font-size="30">⚙️</text>',
+        senses: '<g><path d="M23 75Q73 24 123 75Q73 126 23 75Z" fill="#eaf2ff" stroke="#7a9bd6" stroke-width="4"/><circle cx="73" cy="75" r="16" fill="#779bd7"/><path d="M144 53Q184 26 207 61Q222 87 197 111Q174 129 157 105Q145 87 163 75Q177 66 186 79" fill="none" stroke="#76b9a0" stroke-width="8" stroke-linecap="round"/><path d="M245 52Q272 77 245 111Q223 94 229 73Z" fill="#f4d5bc" stroke="#cc9a7a" stroke-width="4"/></g>',
+        ethics: '<path d="M160 34V151M103 151H217M120 43H200" stroke="#8799b9" stroke-width="6" stroke-linecap="round"/><path d="M85 56L48 122H122ZM235 56L198 122H272Z" fill="#eff5ff" stroke="#7e9dd1" stroke-width="4"/><path d="M48 122Q85 145 122 122M198 122Q235 145 272 122" fill="none" stroke="#7e9dd1" stroke-width="4"/><circle cx="160" cy="30" r="11" fill="#e5b45c"/>',
+        conflict: '<path d="M42 53L135 146M42 146L135 53M185 53L278 146M185 146L278 53" stroke="#d58b7d" stroke-width="8" stroke-linecap="round"/><circle cx="160" cy="99" r="38" fill="#fff2de" stroke="#d9ad61" stroke-width="4"/><text x="160" y="114" text-anchor="middle" font-size="40">⚡</text>',
+        food: '<ellipse cx="160" cy="102" rx="106" ry="68" fill="#fff" stroke="#9eb3d0" stroke-width="6"/><ellipse cx="160" cy="102" rx="77" ry="47" fill="#eff7ee" stroke="#85b997" stroke-width="3"/><circle cx="133" cy="91" r="22" fill="#e89b83"/><path d="M185 74Q227 84 205 126Q179 139 172 111Z" fill="#e9c66e"/><path d="M95 115Q119 80 135 126" fill="none" stroke="#71b58d" stroke-width="10" stroke-linecap="round"/>',
+        process: '<g fill="#eaf2ff" stroke="#7b9bd6" stroke-width="4"><rect x="20" y="67" width="72" height="57" rx="12"/><rect x="124" y="67" width="72" height="57" rx="12"/><rect x="228" y="67" width="72" height="57" rx="12"/></g><path d="M95 96H120M111 84L123 96L111 108M199 96H224M215 84L227 96L215 108" fill="none" stroke="#69b48c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="56" y="103" text-anchor="middle" font-size="23">①</text><text x="160" y="103" text-anchor="middle" font-size="23">②</text><text x="264" y="103" text-anchor="middle" font-size="23">③</text>',
+        possibility: '<rect x="54" y="54" width="212" height="94" rx="47" fill="#eaf4ff" stroke="#83a5db" stroke-width="5"/><circle cx="111" cy="101" r="31" fill="#fff" stroke="#83a5db" stroke-width="4"/><circle cx="209" cy="101" r="31" fill="#dff4e8" stroke="#73bd99" stroke-width="4"/><path d="M196 101L206 111L225 88" fill="none" stroke="#4d9c79" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M98 101H124" stroke="#9aa9bf" stroke-width="5" stroke-linecap="round"/>',
+        causeEffect: '<circle cx="72" cy="95" r="32" fill="#fff0dc" stroke="#dfa85c" stroke-width="4"/><circle cx="248" cy="95" r="32" fill="#e8f3ff" stroke="#7b9ed8" stroke-width="4"/><path d="M111 95H206M190 80L207 95L190 110" fill="none" stroke="#7e9bd1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="72" y="106" text-anchor="middle" font-size="31">💥</text><text x="248" y="106" text-anchor="middle" font-size="30">🎯</text><text x="160" y="65" text-anchor="middle" font-size="13" fill="#73849e">原因</text><text x="160" y="139" text-anchor="middle" font-size="13" fill="#73849e">結果へ</text>',
+        permission: '<path d="M68 165V83Q68 33 160 33Q252 33 252 83V165" fill="#edf4ff" stroke="#7e9ed7" stroke-width="5"/><rect x="101" y="93" width="118" height="83" rx="12" fill="#fff" stroke="#91a7c9" stroke-width="4"/><circle cx="160" cy="126" r="9" fill="#d9ad5f"/><path d="M160 135V151" stroke="#d9ad5f" stroke-width="5" stroke-linecap="round"/><path d="M83 83L104 62L125 83" fill="none" stroke="#63b58d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>',
+        memory: '<path d="M83 119C55 104 63 59 98 54C110 25 151 31 161 52C193 30 230 53 223 84C253 111 222 145 193 137H105Z" fill="#eeeaff" stroke="#9485d5" stroke-width="4"/><path d="M124 91Q145 67 165 91Q184 112 205 87" fill="none" stroke="#8b79c9" stroke-width="5" stroke-linecap="round"/><path d="M123 107L139 122L169 82" fill="none" stroke="#65b58c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
+        search: '<circle cx="132" cy="83" r="48" fill="#eaf2ff" stroke="#799bd6" stroke-width="5"/><circle cx="132" cy="83" r="27" fill="#fff" stroke="#92addb" stroke-width="3"/><path d="M167 119L231 170" stroke="#799bd6" stroke-width="14" stroke-linecap="round"/><path d="M119 83H145M132 70V96" stroke="#77a1d9" stroke-width="4" stroke-linecap="round"/>',
+        solution: '<rect x="50" y="50" width="220" height="101" rx="15" fill="#f1f5fc" stroke="#91a7c8" stroke-width="4"/><path d="M85 103L132 145L233 60" fill="none" stroke="#60b58b" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><circle cx="160" cy="100" r="72" fill="none" stroke="#d8e3f1" stroke-width="3" stroke-dasharray="6 8"/>',
+        spread: '<circle cx="160" cy="95" r="20" fill="#f5dfaa" stroke="#d8a750" stroke-width="4"/><g fill="#e9f3ff" stroke="#7e9fd8" stroke-width="4"><circle cx="73" cy="45" r="19"/><circle cx="247" cy="45" r="19"/><circle cx="73" cy="145" r="19"/><circle cx="247" cy="145" r="19"/></g><path d="M142 82L91 56M178 82L229 56M142 108L91 134M178 108L229 134" stroke="#70a5d7" stroke-width="5" stroke-linecap="round"/><path d="M89 42L72 45L80 61M231 42L248 45L240 61M89 148L72 145L80 129M231 148L248 145L240 129" fill="none" stroke="#70a5d7" stroke-width="4" stroke-linejoin="round"/>',
+        safety: '<path d="M160 20L253 54V108C253 147 215 169 160 184C105 169 67 147 67 108V54Z" fill="#eaf6f0" stroke="#6eb794" stroke-width="5"/><path d="M160 56L191 116H129Z" fill="#fff2d9" stroke="#e0ad58" stroke-width="4"/><path d="M160 76V96M160 105V108" stroke="#c28b3f" stroke-width="6" stroke-linecap="round"/>',
+        ownership: '<path d="M70 88Q70 57 103 57H217Q250 57 250 88V147H70Z" fill="#eaf2ff" stroke="#7d9dd7" stroke-width="4"/><path d="M99 86H221" stroke="#9cb2d9" stroke-width="4"/><rect x="126" y="102" width="68" height="52" rx="10" fill="#fff4dc" stroke="#dbac5d" stroke-width="4"/><path d="M143 102V88Q143 70 160 70Q177 70 177 88V102" fill="none" stroke="#dbac5d" stroke-width="5"/><circle cx="160" cy="123" r="7" fill="#c08c43"/>',
+        relationship: '<circle cx="77" cy="95" r="31" fill="#eaf2ff" stroke="#7e9ed7" stroke-width="4"/><circle cx="243" cy="95" r="31" fill="#eaf8f0" stroke="#71b995" stroke-width="4"/><path d="M111 95H209M195 80L211 95L195 110" fill="none" stroke="#8c91ce" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="77" y="105" text-anchor="middle" font-size="28">👤</text><text x="243" y="105" text-anchor="middle" font-size="28">👤</text><path d="M141 50Q160 31 179 50Q199 72 160 90Q121 72 141 50Z" fill="#f6dce4" stroke="#d98b9d" stroke-width="3"/>',
+        function: '<circle cx="160" cy="96" r="59" fill="#edf3ff" stroke="#7e9ed6" stroke-width="5"/><circle cx="160" cy="96" r="22" fill="#fff" stroke="#7e9ed6" stroke-width="4"/><g stroke="#7e9ed6" stroke-width="10" stroke-linecap="round"><path d="M160 25V42M160 150V167M89 96H106M214 96H231M110 46L122 58M198 134L210 146M210 46L198 58M122 134L110 146"/></g><path d="M151 95L160 105L179 81" fill="none" stroke="#64b58c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
+        behavior: '<circle cx="160" cy="43" r="22" fill="#f3d2b9" stroke="#cd9d80" stroke-width="3"/><path d="M111 157Q113 83 160 83Q207 83 209 157Z" fill="#eaf2ff" stroke="#799bd6" stroke-width="4"/><path d="M126 115L154 136L196 98" fill="none" stroke="#69b58e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+
+      };
+      return commonStart + (diagrams[type] || '') + commonEnd;
+    }
+
+    function renderMeaningVisual(entry, panel) {
+      if (!panel) return;
+      if (panel.id === 'searchVisualPanel') currentSearchVisualEntry = entry;
+      if (panel.id === 'browseVisualPanel') currentBrowseVisualEntry = entry;
+      panel.hidden = !imageVisualEnabled;
+      if (!imageVisualEnabled) return;
+      panel.replaceChildren();
+      const heading = document.createElement('div');
+      heading.className = 'visual-heading';
+      const headingLabel = document.createElement('span');
+      headingLabel.textContent = 'イメージ';
+      const tag = document.createElement('span');
+      tag.className = 'visual-mode-tag';
+      tag.textContent = 'SVG DIAGRAM';
+      heading.append(headingLabel, tag);
+      panel.appendChild(heading);
+      if (!entry) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'visual-placeholder';
+        placeholder.innerHTML = '<span class="visual-placeholder-mark">✧</span><span>単語を検索すると<br>ここに図解が表示されます</span>';
+        panel.appendChild(placeholder);
+        return;
+      }
+      const type = getMeaningVisualType(entry);
+      if (!type) {
+        const noMatch = document.createElement('div');
+        noMatch.className = 'visual-no-match';
+        const title = document.createElement('strong');
+        title.textContent = 'この単語は図解なし';
+        const note = document.createElement('span');
+        note.textContent = '意味を誤って表す図を出さないため、今回は省略しています。';
+        noMatch.append(title, note);
+        panel.appendChild(noMatch);
+        const chip = document.createElement('div');
+        chip.className = 'visual-word-chip';
+        chip.textContent = entry.word;
+        panel.appendChild(chip);
+        return;
+      }
+      const canvas = document.createElement('div');
+      canvas.className = 'visual-canvas';
+      canvas.innerHTML = visualSvg(type);
+      const captions = {
+        increase:'少ない状態から増えていく', decrease:'多い状態から減っていく',
+        connect:'別々の人・ものがつながる', divide:'ひとつのものを複数に分ける',
+        transfer:'A から B へ移す・運ぶ', prevent:'進もうとするものを止める',
+        protect:'外側から守る・保護する', compare:'2つを並べて比べる',
+        include:'全体の中に含まれている', choose:'複数の候補からひとつ選ぶ',
+        create:'アイデアを形にする', communicate:'情報や考えを相手に伝える',
+        support:'下から支えて助ける', compete:'相手と競い合う', approach:'対象との距離が近づく',
+        appearance:'見えるようになる・隠れて見えなくなる', movement:'場所や位置が移り変わる', thought:'頭の中で考えを組み立てる',
+        perception:'目や感覚を通じて気づく', speech:'言葉を使って意見や情報を交わす', exchange:'ものや価値を互いにやり取りする',
+        money:'お金や経済的な価値の動き', build:'部品や材料から形を組み立てる', destroy:'形や状態が壊れていく',
+        growth:'小さなものが育ち、発達する', mix:'別々のものが混ざり合う', filter:'必要なものを選り分ける',
+        clean:'汚れを取り除き、きれいにする', health:'健康や治療に関わる', body:'生物の身体や、その構成要素',
+        nature:'自然界の生物や環境', place:'場所・地域・位置を示す', time:'過去から現在、未来への時間の流れ',
+        quantity:'量や程度の大小を比べる', geometry:'線や面、形の位置関係', emotion:'心に生じる感情や気持ち',
+        society:'人々が集まり、社会をつくる', law:'規則や法律、公正な判断', politics:'政治や公共の意思決定',
+        education:'学び、知識や技能を身につける', technology:'機器や技術のしくみ', senses:'見る・聞く・嗅ぐなどの感覚',
+        ethics:'善悪や行動の価値判断', conflict:'意見や利害がぶつかり合う', food:'食べ物を取り入れ、栄養にする',
+        process:'複数の段階を経て進む', possibility:'可能かどうか・条件が整うか',
+        causeEffect:'原因から結果へ影響がつながる', permission:'許可される・拒まれる境界', memory:'情報を覚え、あとから思い出す',
+        search:'手がかりを探して見つける', solution:'問題を解決し、答えにたどり着く', spread:'ひとつの場所から周囲へ広がる',
+        safety:'危険を避け、安全を守る', ownership:'ものを所有・保管する', relationship:'人やものの間につながりがある',
+        function:'部品が役割を果たす', behavior:'人の行動やふるまい'
+      };
+      const caption = document.createElement('p');
+      caption.className = 'visual-caption';
+      caption.textContent = captions[type] || '意味の関係を図で表現';
+      const chip = document.createElement('div');
+      chip.className = 'visual-word-chip';
+      chip.textContent = entry.word;
+      panel.append(canvas, caption, chip);
+      panel.dataset.visualType = type;
+    }
+
     function showEmpty() {
+      renderMeaningVisual(null, document.getElementById('searchVisualPanel'));
       result.className = 'result empty';
       clearResultContent();
       const icon = document.createElement('div');
@@ -3919,6 +4577,7 @@
       const entry = byWord.get(query);
       clearResultContent();
       if (!entry) {
+        renderMeaningVisual(null, document.getElementById('searchVisualPanel'));
         result.className = 'result';
         const label = document.createElement('div');
         label.className = 'result-label not-found';
@@ -3935,6 +4594,7 @@
       }
 
       recordSearchHistory(entry.word);
+      renderMeaningVisual(entry, document.getElementById('searchVisualPanel'));
       result.className = 'result';
       const label = document.createElement('div');
       label.className = 'result-label';
@@ -4250,6 +4910,8 @@
         });
     }
 
+    renderMeaningVisual(byWord.get('create') || null, document.getElementById('browseVisualPanel'));
+
     function renderBrowseEntry() {
       if (!browseDeck.length) return;
       const entry = browseDeck[browseIndex];
@@ -4257,6 +4919,7 @@
       browseCount.textContent = `${(browseIndex + 1).toLocaleString('ja-JP')} / ${browseDeck.length.toLocaleString('ja-JP')}`;
       browseWord.textContent = entry.word;
       browseMeaning.textContent = entry.meaning;
+      renderMeaningVisual(entry, document.getElementById('browseVisualPanel'));
       browseCheckToggle.dataset.checkNumber = String(entry.number);
       syncStarButton(browseCheckToggle, entry);
       const hint = getBrowseHint(entry);
