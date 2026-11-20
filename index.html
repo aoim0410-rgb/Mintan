@@ -9,9 +9,13 @@
       if (localStorage.getItem('mintan-theme') === 'dark') {
         document.documentElement.dataset.theme = 'dark';
       }
-    } catch (error) { /* Storage may be unavailable in restricted browser contexts. */ }
+      document.documentElement.dataset.effects = localStorage.getItem('mintan-effects-v1') === 'on' ? 'on' : 'off';
+    } catch (error) {
+      document.documentElement.dataset.effects = 'off';
+      /* Storage may be unavailable in restricted browser contexts. */
+    }
   </script>
-  <title>みん単｜英単語検索 v52</title>
+  <title>みん単｜英単語検索 v59</title>
   <style>
     :root { color-scheme: light; --ink:#17233d; --muted:#65718a; --line:rgba(102,129,190,.18); --blue:#247cff; --surface:rgba(255,255,255,.94); --soft:rgba(47,126,255,.10); --shadow:0 18px 55px rgba(64,91,150,.12); }
     * { box-sizing:border-box; }
@@ -2611,8 +2615,252 @@
     .settings-notice p { margin:6px 0 0; }
     .meaning-visual[hidden] { display:none !important; }
     @media(max-width:520px) { .settings-shell { padding:17px; } .settings-choice-row { flex-direction:column; } }
+
+
+    /* v54 performance pass: fewer compositor-heavy effects and no continuous hue filters. */
+    body { background-attachment:scroll !important; }
+    body::before { display:none !important; }
+    *, *::before, *::after {
+      -webkit-backdrop-filter:none !important;
+      backdrop-filter:none !important;
+    }
+    .search-panel::before,
+    .search-panel::after {
+      animation:none !important;
+      filter:none !important;
+      transition:opacity .14s ease !important;
+    }
+    .search-panel::before { opacity:.72 !important; }
+    .search-panel::after { opacity:.82 !important; }
+    .search-panel.glow-burst::before,
+    .search-panel.glow-burst::after { opacity:1 !important; }
+    .result::before,
+    .result > .result-glow-track,
+    .tap-glow { display:none !important; animation:none !important; }
+    .result.result-flash { animation:mintanResultIn .22s ease-out 1 both !important; }
+    @keyframes mintanResultIn {
+      from { opacity:.96; transform:translateY(3px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    main { animation:mintanMainIn .24s ease-out both !important; }
+    @keyframes mintanMainIn {
+      from { opacity:0; transform:translateY(5px); }
+      to { opacity:1; transform:translateY(0); }
+    }
+    .test-progress-fill { transition:width .12s linear !important; }
+    @media(prefers-reduced-motion:reduce) {
+      main,.result.result-flash { animation:none !important; }
+      .search-panel::before,.search-panel::after { transition:none !important; }
+    }
+  
+
+    /* v58: one authoritative effects block; no later static rule can cancel the rotation. */
+    @property --mintan-glow-angle {
+      syntax: "<angle>";
+      inherits: false;
+      initial-value: 0deg;
+    }
+    @keyframes mintanGlowTurn {
+      to { --mintan-glow-angle: 360deg; }
+    }
+    @keyframes mintanTapBloom {
+      0% { opacity:0; transform:translate(-50%,-50%) scale(.34); }
+      20% { opacity:.72; transform:translate(-50%,-50%) scale(.72); }
+      100% { opacity:0; transform:translate(-50%,-50%) scale(1.12); }
+    }
+
+    /* Effects OFF by default: remove all decorative glow layers completely. */
+    html[data-effects="off"] .search-panel::before,
+    html[data-effects="off"] .search-panel::after {
+      content:none !important;
+      display:none !important;
+      animation:none !important;
+      filter:none !important;
+    }
+    html[data-effects="off"] .search-panel,
+    html[data-effects="off"] .search-panel:focus-within,
+    html[data-effects="off"] .search-panel.glow-burst {
+      border-color:rgba(110,146,210,.22) !important;
+      box-shadow:0 10px 28px rgba(56,96,165,.08) !important;
+      transition:border-color .14s ease, box-shadow .14s ease !important;
+    }
+    html[data-effects="off"] .tap-glow { display:none !important; animation:none !important; }
+
+    /* Effects ON: the gradient angle itself moves, keeping the rounded rectangle still. */
+    html[data-effects="on"] .search-panel {
+      position:relative !important;
+      isolation:isolate !important;
+      overflow:visible !important;
+      box-shadow:0 10px 28px rgba(56,96,165,.08),
+                 0 0 15px rgba(34,151,255,.12),
+                 0 0 22px rgba(143,76,255,.09),
+                 0 0 26px rgba(255,71,159,.07) !important;
+      transition:box-shadow .18s ease, border-color .18s ease !important;
+    }
+    html[data-effects="on"] .search-panel::before,
+    html[data-effects="on"] .search-panel::after {
+      content:"" !important;
+      display:block !important;
+      position:absolute !important;
+      z-index:0 !important;
+      pointer-events:none !important;
+      border-radius:inherit !important;
+      background:conic-gradient(from var(--mintan-glow-angle),
+        #22d2ff 0deg,
+        #665bff 72deg,
+        #fa57bf 144deg,
+        #ffad55 216deg,
+        #3ad4a5 288deg,
+        #22d2ff 360deg) !important;
+      -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0) !important;
+      -webkit-mask-composite:xor !important;
+      mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0) !important;
+      mask-composite:exclude !important;
+      animation:mintanGlowTurn 6s linear infinite !important;
+      transform:none !important;
+      filter:none !important;
+    }
+    html[data-effects="on"] .search-panel::before {
+      inset:-4px !important;
+      padding:3px !important;
+      opacity:.96 !important;
+    }
+    html[data-effects="on"] .search-panel::after {
+      inset:-7px !important;
+      padding:5px !important;
+      opacity:.42 !important;
+      filter:blur(7px) saturate(1.15) !important;
+      animation-duration:8s !important;
+      animation-direction:reverse !important;
+    }
+    html[data-effects="on"] .search-panel > input,
+    html[data-effects="on"] .search-panel > button {
+      position:relative !important;
+      z-index:1 !important;
+    }
+    html[data-effects="on"] .search-panel:focus-within {
+      border-color:rgba(104,137,255,.42) !important;
+      box-shadow:0 0 0 3px rgba(83,139,255,.08),
+                 0 10px 28px rgba(56,96,165,.08),
+                 0 0 20px rgba(36,155,255,.17),
+                 0 0 27px rgba(133,83,255,.11),
+                 0 0 32px rgba(255,72,158,.08) !important;
+    }
+    html[data-effects="on"] .search-panel.glow-burst {
+      box-shadow:0 0 0 3px rgba(54,176,255,.08),
+                 0 0 23px 5px rgba(94,119,255,.20),
+                 0 0 34px 9px rgba(245,74,177,.13),
+                 0 0 42px 12px rgba(42,201,197,.09) !important;
+    }
+    html[data-effects="on"] .search-panel.glow-burst::before { opacity:1 !important; animation-duration:3.2s !important; }
+    html[data-effects="on"] .search-panel.glow-burst::after { opacity:.68 !important; animation-duration:4.5s !important; }
+
+    /* One brief tap bloom, enabled by the same switch. */
+    html[data-effects="on"] .tap-glow {
+      display:block !important;
+      position:fixed !important;
+      z-index:99999 !important;
+      width:96px !important;
+      height:96px !important;
+      margin:0 !important;
+      border-radius:50% !important;
+      pointer-events:none !important;
+      opacity:0;
+      filter:none !important;
+      mix-blend-mode:normal !important;
+      transform:translate(-50%,-50%) scale(.34);
+      background:
+        radial-gradient(ellipse 46% 38% at 24% 27%,rgba(27,205,255,.78) 0%,transparent 100%),
+        radial-gradient(ellipse 39% 47% at 77% 23%,rgba(244,69,177,.72) 0%,transparent 100%),
+        radial-gradient(ellipse 46% 37% at 74% 77%,rgba(255,163,68,.72) 0%,transparent 100%),
+        radial-gradient(ellipse 38% 46% at 22% 77%,rgba(44,220,186,.72) 0%,transparent 100%) !important;
+      animation:mintanTapBloom .38s ease-out 1 both !important;
+    }
+
+    /* Hide the entire underlying lookup page while browse/test overlays are open. */
+    body.mode-overlay-open > main { display:none !important; }
+    @media(prefers-reduced-motion:reduce) {
+      html[data-effects="on"] .search-panel::before,
+      html[data-effects="on"] .search-panel::after,
+      .tap-glow { animation:none !important; }
+    }
+
+
+    /* v59: a moving rainbow light segment travels once around the result card. */
+    @property --mintan-result-angle {
+      syntax: "<angle>";
+      inherits: false;
+      initial-value: 0deg;
+    }
+    @keyframes mintanResultOrbit {
+      0%   { --mintan-result-angle: 0deg; opacity: 0; }
+      8%   { opacity: 1; }
+      88%  { --mintan-result-angle: 360deg; opacity: 1; }
+      100% { --mintan-result-angle: 360deg; opacity: 0; }
+    }
+    @keyframes mintanResultOrbitHalo {
+      0%   { --mintan-result-angle: 0deg; opacity: 0; }
+      8%   { opacity: .58; }
+      88%  { --mintan-result-angle: 360deg; opacity: .58; }
+      100% { --mintan-result-angle: 360deg; opacity: 0; }
+    }
+
+    html[data-effects="on"] .result.result-flash {
+      animation:resultCardEnter .34s ease-out 1 both !important;
+    }
+    html[data-effects="on"] .result.result-flash::before,
+    html[data-effects="on"] .result.result-flash::after {
+      content:"" !important;
+      display:block !important;
+      position:absolute !important;
+      z-index:0 !important;
+      pointer-events:none !important;
+      border-radius:inherit !important;
+      background:conic-gradient(from var(--mintan-result-angle, 0deg),
+        transparent 0deg 246deg,
+        rgba(34,210,255,.18) 252deg,
+        #22d2ff 264deg,
+        #665bff 286deg,
+        #fa57bf 308deg,
+        #ffad55 330deg,
+        #3ad4a5 345deg,
+        transparent 356deg 360deg) !important;
+      -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0) !important;
+      -webkit-mask-composite:xor !important;
+      mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0) !important;
+      mask-composite:exclude !important;
+    }
+    /* Fine, bright edge: the colored segment visibly travels along the frame. */
+    html[data-effects="on"] .result.result-flash::before {
+      inset:-4px !important;
+      padding:2.6px !important;
+      opacity:0;
+      filter:drop-shadow(0 0 4px rgba(68,151,255,.5)) !important;
+      animation:mintanResultOrbit 1.55s cubic-bezier(.18,.68,.22,1) 1 both !important;
+    }
+    /* A restrained outer haze follows the same moving segment. */
+    html[data-effects="on"] .result.result-flash::after {
+      inset:-9px !important;
+      padding:8px !important;
+      opacity:0;
+      filter:blur(5px) saturate(1.35) !important;
+      animation:mintanResultOrbitHalo 1.55s cubic-bezier(.18,.68,.22,1) 1 both !important;
+    }
+    html[data-effects="off"] .result.result-flash::before,
+    html[data-effects="off"] .result.result-flash::after,
+    html[data-effects="off"] .result > .result-glow-track {
+      display:none !important;
+      content:none !important;
+      animation:none !important;
+    }
+    @media (prefers-reduced-motion:reduce) {
+      html[data-effects="on"] .result.result-flash::before,
+      html[data-effects="on"] .result.result-flash::after {
+        animation-duration:.01ms !important;
+      }
+    }
   </style>
-  <!-- v52: image visual OFF collapses the visual column and restores the centered single-column layout -->
+  <!-- v59: optional moving search and result-card glow; clean modal background -->
 </head>
 <body>
   <main>
@@ -2696,6 +2944,13 @@
           <button type="button" class="settings-choice" id="settingsLight" aria-pressed="true">☀ ライトモード</button>
           <button type="button" class="settings-choice" id="settingsDark" aria-pressed="false">☾ ダークモード</button>
         </div>
+      </section>
+      <section class="settings-section">
+        <h3>演出エフェクト</h3>
+        <label class="settings-switch-row" for="effectsToggle">
+          <span><strong>グロー・タップエフェクトを表示する</strong><small>検索時のグローと、画面を押したときのカラー演出をまとめて切り替えます。初期設定はOFFです。</small></span>
+          <input type="checkbox" id="effectsToggle">
+        </label>
       </section>
       <section class="settings-section">
         <h3>単語のイメージ図解</h3>
@@ -2896,14 +3151,15 @@
           <p class="test-question-instruction">最も適切な意味を1つ選んでください。</p>
           <div class="test-options" id="testOptions"></div>
           <div class="test-feedback" id="testFeedback" aria-live="polite"></div>
-          <div class="test-answer-words" id="testAnswerWords" hidden>
-            <p class="test-answer-words-title">選択肢の単語（番号つき）</p>
-            <div id="testAnswerWordList"></div>
-          </div>
           <div class="test-navigation">
             <button class="test-previous" id="testPrevious" type="button" disabled>← 前の問題</button>
             <button class="test-next" id="testNext" type="button" disabled>回答を選択してください</button>
           </div>
+          <div class="test-answer-words" id="testAnswerWords" hidden>
+            <p class="test-answer-words-title">選択肢の単語（番号つき）</p>
+            <div id="testAnswerWordList"></div>
+          </div>
+
           <div class="test-exit-actions" aria-label="テストの終了方法">
             <button class="test-save-exit" id="testSaveExit" type="button">
               <span class="test-exit-title">保存して終了</span>
@@ -4024,6 +4280,9 @@
     const settingsDark = document.getElementById('settingsDark');
     const imageVisualToggle = document.getElementById('imageVisualToggle');
     const imageVisualStorageKey = 'mintan-image-visual-v1';
+    const effectsToggle = document.getElementById('effectsToggle');
+    const effectsStorageKey = 'mintan-effects-v1';
+    const searchPanel = document.getElementById('searchForm');
     const themeColorMeta = document.getElementById('themeColorMeta');
     const searchHistoryToggle = document.getElementById('searchHistoryToggle');
     const searchHistoryPanel = document.getElementById('searchHistoryPanel');
@@ -4067,7 +4326,6 @@
         chip.title = 'クリックしてもう一度検索';
         chip.addEventListener('click', () => {
           input.value = entry ? entry.word : word;
-          burstSearchGlow();
           searchWord(input.value);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         });
@@ -4115,6 +4373,54 @@
     settingsLight.addEventListener('click', () => chooseTheme('light'));
     settingsDark.addEventListener('click', () => chooseTheme('dark'));
 
+    let effectsEnabled = false;
+    try { effectsEnabled = localStorage.getItem(effectsStorageKey) === 'on'; } catch (error) { effectsEnabled = false; }
+    effectsToggle.checked = effectsEnabled;
+    let activeTapEffect = null;
+    let searchGlowTimer = 0;
+    function handleTapEffect(event) {
+      if (!effectsEnabled || event.button !== 0 || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
+      if (activeTapEffect) activeTapEffect.remove();
+      const bloom = document.createElement('span');
+      bloom.className = 'tap-glow';
+      bloom.style.left = `${event.clientX}px`;
+      bloom.style.top = `${event.clientY}px`;
+      activeTapEffect = bloom;
+      document.body.appendChild(bloom);
+      bloom.addEventListener('animationend', () => {
+        if (activeTapEffect === bloom) activeTapEffect = null;
+        bloom.remove();
+      }, { once:true });
+    }
+    function applyEffectsPreference() {
+      document.documentElement.dataset.effects = effectsEnabled ? 'on' : 'off';
+      if (effectsEnabled) {
+        document.addEventListener('pointerdown', handleTapEffect, { passive:true });
+      } else {
+        document.removeEventListener('pointerdown', handleTapEffect);
+        if (activeTapEffect) activeTapEffect.remove();
+        activeTapEffect = null;
+        if (searchPanel) searchPanel.classList.remove('glow-burst');
+        if (searchGlowTimer) window.clearTimeout(searchGlowTimer);
+        searchGlowTimer = 0;
+      }
+    }
+    function triggerSearchGlow() {
+      if (!effectsEnabled || !searchPanel) return;
+      searchPanel.classList.add('glow-burst');
+      if (searchGlowTimer) window.clearTimeout(searchGlowTimer);
+      searchGlowTimer = window.setTimeout(() => {
+        searchPanel.classList.remove('glow-burst');
+        searchGlowTimer = 0;
+      }, 720);
+    }
+    effectsToggle.addEventListener('change', () => {
+      effectsEnabled = effectsToggle.checked;
+      try { localStorage.setItem(effectsStorageKey, effectsEnabled ? 'on' : 'off'); } catch (error) { /* Preference applies for this visit. */ }
+      applyEffectsPreference();
+    });
+    applyEffectsPreference();
+
     let imageVisualEnabled = false;
     try { imageVisualEnabled = localStorage.getItem(imageVisualStorageKey) === 'on'; } catch (error) { imageVisualEnabled = false; }
     imageVisualToggle.checked = imageVisualEnabled;
@@ -4141,14 +4447,37 @@
     });
     applyImageVisualPreference();
 
-    // Local autocomplete list; it does not send anything over the network.
-    const optionFragment = document.createDocumentFragment();
-    for (const entry of entries) {
-      const option = document.createElement('option');
-      option.value = entry.word;
-      optionFragment.appendChild(option);
+    // Lightweight local autocomplete: keep only up to 10 prefix matches in the datalist.
+    // The 1,200 headwords are sorted once; each keystroke then uses binary search.
+    const suggestionWords = entries.map(entry => entry.word.toLowerCase()).sort();
+    let lastSuggestionQuery = null;
+    function updateWordSuggestions() {
+      const query = input.value.trim().toLowerCase();
+      if (query === lastSuggestionQuery) return;
+      lastSuggestionQuery = query;
+      const fragment = document.createDocumentFragment();
+      if (query) {
+        let low = 0;
+        let high = suggestionWords.length;
+        while (low < high) {
+          const middle = (low + high) >>> 1;
+          if (suggestionWords[middle] < query) low = middle + 1;
+          else high = middle;
+        }
+        let added = 0;
+        for (let index = low; index < suggestionWords.length && added < 10; index++) {
+          const word = suggestionWords[index];
+          if (!word.startsWith(query)) break;
+          const option = document.createElement('option');
+          option.value = word;
+          fragment.appendChild(option);
+          added++;
+        }
+      }
+      suggestions.replaceChildren(fragment);
     }
-    suggestions.appendChild(optionFragment);
+    input.addEventListener('input', updateWordSuggestions, { passive: true });
+    input.addEventListener('focus', updateWordSuggestions, { passive: true });
 
     // Checked words are saved in this browser so the list survives a refresh.
     const checkedStorageKey = 'mintan-checked-words-v1';
@@ -4569,6 +4898,7 @@
 
     function searchWord(raw) {
       const query = raw.trim().toLowerCase();
+      if (query) triggerSearchGlow();
       if (!query) {
         showEmpty();
         input.focus();
@@ -4641,52 +4971,10 @@
       hintValue.textContent = handEtymology || pdfHint || 'この単語はPDFにも個別の覚え方メモが見当たらなかったため、意味の核を押さえて覚えよう。関連語や接頭辞・語根が分かれば、そこから語源メモを追加できます。';
       hintCard.append(hintLabel, hintValue);
       details.append(ipaCard, hintCard);
-      const glowSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      glowSvg.setAttribute('class', 'result-glow-track');
-      glowSvg.setAttribute('viewBox', '0 0 100 100');
-      glowSvg.setAttribute('preserveAspectRatio', 'none');
-      glowSvg.setAttribute('aria-hidden', 'true');
-      glowSvg.setAttribute('focusable', 'false');
-      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-      const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-      gradient.setAttribute('id', 'resultGlowGradient');
-      gradient.setAttribute('x1', '0%'); gradient.setAttribute('y1', '0%');
-      gradient.setAttribute('x2', '100%'); gradient.setAttribute('y2', '100%');
-      [
-        ['0%', '#00d6ff'], ['18%', '#5968ff'], ['38%', '#a855f7'],
-        ['56%', '#ff42b5'], ['74%', '#ff9a3d'], ['90%', '#29dfbd'], ['100%', '#00d6ff']
-      ].forEach(([offset, color]) => {
-        const stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-        stop.setAttribute('offset', offset); stop.setAttribute('stop-color', color);
-        gradient.appendChild(stop);
-      });
-      defs.appendChild(gradient);
-      glowSvg.appendChild(defs);
-      glowSvg.addEventListener('animationend', () => glowSvg.remove(), { once: true });
-      result.append(glowSvg, label, line, meaning, details);
-
-      // Measure the actual overlay after insertion. Its viewBox uses CSS pixels,
-      // so the rounded path cannot become oval or drift on wide/tall result cards.
-      const glowBounds = glowSvg.getBoundingClientRect();
-      const glowWidth = Math.max(1, glowBounds.width);
-      const glowHeight = Math.max(1, glowBounds.height);
-      glowSvg.setAttribute('viewBox', `0 0 ${glowWidth} ${glowHeight}`);
-      const borderRadius = parseFloat(getComputedStyle(result).borderTopLeftRadius) || 24;
-      const pathRadius = Math.max(0, Math.min(borderRadius - 0.5, glowWidth / 2, glowHeight / 2));
-      ['halo-wide', 'halo-mid', 'halo-core'].forEach(className => {
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        path.setAttribute('x', '0');
-        path.setAttribute('y', '0');
-        path.setAttribute('width', String(glowWidth));
-        path.setAttribute('height', String(glowHeight));
-        path.setAttribute('rx', String(pathRadius));
-        path.setAttribute('ry', String(pathRadius));
-        path.setAttribute('pathLength', '1000');
-        path.setAttribute('vector-effect', 'non-scaling-stroke');
-        path.setAttribute('class', className);
-        glowSvg.appendChild(path);
-      });
-      result.classList.remove('pulse','spin','active-glow','result-flash');
+      // Keep the result transition lightweight; no per-search SVG/filter layers or forced reflow.
+      result.append(label, line, meaning, details);
+      result.classList.remove('pulse', 'spin', 'active-glow', 'result-flash');
+      // Force a style/layout boundary so the one-lap outline animation restarts on every search.
       void result.offsetWidth;
       result.classList.add('result-flash');
       const searchedWord = entry.word.toLowerCase();
@@ -4712,36 +5000,9 @@
       }
     }
 
-
-    document.addEventListener('pointerdown', event => {
-      const bloom = document.createElement('span');
-      bloom.className = 'tap-glow';
-      bloom.style.left = `${event.clientX}px`;
-      bloom.style.top = `${event.clientY}px`;
-      const tapPalette = ['#00c8ff','#635bff','#f03ab8','#ff943d','#20e0c6','#8de04f','#ffd447','#ff5d78','#8d4dff','#26a8ff'];
-      const shuffled = tapPalette.sort(() => Math.random() - 0.5);
-      shuffled.slice(0, 6).forEach((color, index) => bloom.style.setProperty(`--c${index + 1}`, color));
-      for (let i = 1; i <= 6; i++) {
-        bloom.style.setProperty(`--p${i}`, `${15 + Math.random() * 70}%`);
-        bloom.style.setProperty(`--q${i}`, `${15 + Math.random() * 70}%`);
-      }
-      document.body.appendChild(bloom);
-      bloom.addEventListener('animationend', () => bloom.remove(), { once: true });
-    }, { passive: true });
-
-    let searchGlowTimer = null;
-    function burstSearchGlow() {
-      form.classList.remove('glow-burst');
-      void form.offsetWidth;
-      form.classList.add('glow-burst');
-      if (searchGlowTimer) clearTimeout(searchGlowTimer);
-      searchGlowTimer = setTimeout(() => form.classList.remove('glow-burst'), 620);
-    }
-    form.addEventListener('pointerdown', burstSearchGlow);
-    form.addEventListener('focusin', burstSearchGlow);
+    // v55: search and tap effects are enabled only when the user turns the preference on.
     form.addEventListener('submit', event => {
       event.preventDefault();
-      burstSearchGlow();
       searchWord(input.value);
     });
 
@@ -4972,6 +5233,7 @@
     }
 
     function openBrowseMode() {
+      document.body.classList.add('mode-overlay-open');
       browseMode.hidden = false;
       browseOpen.setAttribute('aria-expanded', 'true');
       document.body.style.overflow = 'hidden';
@@ -4982,6 +5244,7 @@
     }
 
     function closeBrowseMode() {
+      document.body.classList.remove('mode-overlay-open');
       stopBrowseTimer();
       cancelEnglishSpeech();
       browseIpaToken++;
@@ -5254,7 +5517,7 @@
       if (testStartedAt || !testSessionActive) return;
       testStartedAt = Date.now();
       if (testTimerHandle !== null) clearInterval(testTimerHandle);
-      testTimerHandle = setInterval(updateTestTimer, 250);
+      testTimerHandle = setInterval(updateTestTimer, 1000);
       updateTestTimer();
     }
     function clearTestProgress() {
@@ -5532,7 +5795,7 @@
       testSessionActive = true;
       testStartedAt = Date.now();
       testTimer.textContent = '00:00';
-      testTimerHandle = setInterval(updateTestTimer, 250);
+      testTimerHandle = setInterval(updateTestTimer, 1000);
       testSetup.hidden = true;
       testPlay.hidden = false;
       testResult.hidden = true;
@@ -5543,6 +5806,7 @@
     function openTest() {
       stopBrowseTimer();
       if (browseMode && !browseMode.hidden) closeBrowseMode();
+      document.body.classList.add('mode-overlay-open');
       testOverlay.hidden = false;
       document.body.style.overflow = 'hidden';
       let shouldResume = testSessionActive && testQuestions.length > 0 && testResult.hidden;
@@ -5565,6 +5829,7 @@
       else testClose.focus();
     }
     function closeTestOverlay() {
+      document.body.classList.remove('mode-overlay-open');
       cancelEnglishSpeech();
       testStartedAt = 0;
       testOverlay.hidden = true;
